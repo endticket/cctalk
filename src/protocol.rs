@@ -17,7 +17,7 @@ impl ChecksumType {
         match checksum_type.as_ref() {
             "simple" => ChecksumType::SimpleChecksum,
             "crc" => ChecksumType::CRCChecksum,
-            _ => panic!(format!("Invalid cheksum type in config: {:?}", checksum_type)),
+            _ => panic!("Invalid cheksum type in config: {:?}", checksum_type),
         }
     }
 }
