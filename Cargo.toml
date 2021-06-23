@@ -1,0 +1,8 @@
+[package]
+name = "cctalk"
+version = "0.1.0"
+authors = ["Juhasz Sandor <blackghost1987@gmail.com>"]
+
+[dependencies]
+serial = "^0.4.0"
+log = "0.3"
