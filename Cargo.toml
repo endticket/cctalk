@@ -1,7 +1,10 @@
 [package]
 name = "cctalk"
 version = "0.1.0"
+license = "MIT"
 authors = ["Juhasz Sandor <blackghost1987@gmail.com>"]
+repository = "https://github.com/endticket/cctalk"
+description = "CCTalk protocol implementation for handling payment devices"
 
 [dependencies]
 serial = "^0.4.0"
