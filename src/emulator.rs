@@ -22,7 +22,7 @@ pub struct CCTalkEmu {
     cc_software_rev: String,
     cc_build_code: String,
     cc_coin_table: [CoinDef; 16],
-    credit_buffer: [u8; 10],
+    credit_buffer: Vec<u8>,
 }
 
 impl CCTalkEmu {
@@ -43,7 +43,7 @@ impl CCTalkEmu {
             cc_prod_code: "Emulator".to_string(),
             cc_software_rev: "EMU-000".to_string(),
             cc_build_code: "EE0".to_string(),
-            credit_buffer: [0u8; 10],
+            credit_buffer: vec![0u8; 10],
             cc_coin_table: [
                 CoinDef {
                     inhibit: true,
@@ -128,6 +128,13 @@ impl CCTalkEmu {
             ],
         })
     }
+    fn ack(&mut self) -> Result<(), ClientError> {
+        let msg = self.create_message(Payload {
+            header: (HeaderType::Reply),
+            data: (vec![]),
+        });
+        self.client.send_message(&msg)
+    }
     pub fn create_message(&mut self, payload: Payload) -> Message {
         Message::new(1u8, self.address, payload, self.checksum_type)
     }
@@ -135,10 +142,19 @@ impl CCTalkEmu {
         let _received = self.client.read_messages();
         let received = match _received {
             Ok(data) => {
-                // println!("Read: {:?}", data);
+                println!("Read: {:?}", data);
                 data
             }
-            Err(error) => panic!("Client error: {:?}", error),
+            Err(error) => {
+                match error {
+                    ClientError::CCTalkError(ErrorType::ChecksumError) => {
+                        println!("Checksum error");
+                        
+                    },
+                    _ => panic!("Client error: {:?}", error),
+                }
+                vec![]
+            }
         };
         received
     }
@@ -154,11 +170,7 @@ impl CCTalkEmu {
                 self.client.send_message(&msg)
             }
             HeaderType::SimplePoll | HeaderType::PerformSelfcheck => {
-                let msg = self.create_message(Payload {
-                    header: (HeaderType::Reply),
-                    data: (vec![]),
-                });
-                self.client.send_message(&msg)
+                self.ack()
             }
             HeaderType::RequestProductCode => {
                 let msg: Message = self.create_message(Payload {
@@ -208,14 +220,121 @@ impl CCTalkEmu {
                 self.client.send_message(&msg)
             }
             HeaderType::ModifyInhibitStatus => {
-                
+                let bitmask =u16::from_le_bytes([message.payload.data[0], message.payload.data[1]]);
+                for i in 0..16 {
+                    if bitmask & (1<<i) != 0 {
+                        self.cc_coin_table[i].inhibit = false;
+                    } else {
+                        self.cc_coin_table[i].inhibit = true;
+                    }
+                }
+                self.ack()
+            }
+            HeaderType::RequestInhibitStatus => {
+                let mut bitmask:u16 = 0;
+                for i in 0..16 {
+                    if self.cc_coin_table[i].inhibit == false {
+                        bitmask = bitmask | (1<<i);
+                    }
+                }
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (vec![]),
+                    data: (bitmask.to_le_bytes().to_vec()),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::RequestMasterInhibitStatus => {
+                let status:u8;
+                if self.cc_master_inhibit {
+                    status = 0u8;
+                } else {
+                    status = 1u8;
+                }
+                let msg = self.create_message(Payload {
+                    header: (HeaderType::Reply),
+                    data: (vec![status]),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::ModifyMasterInhibitStatus => {
+                if message.payload.data[0] & 1u8 != 0 {
+                    self.cc_master_inhibit = false;
+                } else {
+                    self.cc_master_inhibit = true;
+                }
+                self.ack()
+            }
+            HeaderType::RequestCoinId => {
+                let msg = self.create_message(Payload {
+                    header: (HeaderType::Reply),
+                    data: (self.cc_coin_table[usize::from(message.payload.data[0]-1)].coin_id.as_bytes().to_vec()),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::ReadBufferedCreditOrErrorCodes => {
+                let mut data: Vec<u8> = vec![];
+                data.push(self.counter);
+                data.append(self.credit_buffer.as_mut());
+
+                //println!("Data: {:?}", data);
+                //println!("CB: {:?}", self.credit_buffer);
+                let msg = self.create_message(Payload{
+                    header:(HeaderType::Reply),
+                    data: (data),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::RequestDataStorageAvailability => {
+                let data: Vec<u8> = vec![0, 0, 0, 0, 0];
+                let msg = self.create_message(Payload{
+                    header: (HeaderType::Reply),
+                    data: (data),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::ResetDevice => {
+                self.counter = 0;
+                self.credit_buffer = vec![0u8; 10];
+                self.cc_master_inhibit = true;
+                self.ack()
+            }
+            HeaderType::RequestPollingPriority => {
+                // Polling in 200ms intervals
+                let data: Vec<u8> = vec![2, 20];
+                let msg = self.create_message(Payload{
+                    header: (HeaderType::Reply),
+                    data: (data),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::RequestDatabaseVersion => {
+                // Remote programming not supported
+                let data: Vec<u8> = vec![0];
+                let msg = self.create_message(Payload{
+                    header: (HeaderType::Reply),
+                    data: (data),
+                });
+                self.client.send_message(&msg)
+            }
+            HeaderType::RequestSorterPaths => {
+                let msg = self.create_message(Payload {
+                    header: (HeaderType::Reply),
+                    data: (vec![self.cc_coin_table[usize::from(message.payload.data[0]-1)].sort_path]),
                 });
                 self.client.send_message(&msg)
             }
             _ => Ok(()),
         }
+    }
+    pub fn add_credit(&mut self, channel: u8) {
+        let (cnt, roll) = self.counter.overflowing_add(1);
+        if roll {
+            self.counter = 1u8;
+        } else {
+            self.counter = cnt;
+        }
+        self.credit_buffer.insert(0, self.cc_coin_table[usize::from(channel-1)].sort_path);
+        self.credit_buffer.insert(0, channel);
+        self.credit_buffer.truncate(10);
     }
 }
