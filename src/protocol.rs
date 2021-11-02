@@ -875,7 +875,7 @@ impl Message {
     }
 
     pub fn decode(raw: &mut Vec<u8>) -> Result<Message, ErrorType> {
-        // debug!("Decoding raw: {:?}", raw);
+        // log::debug!("Decoding raw: {:?}", raw);
 
         let msg_length = raw.len() as u16;
 
@@ -904,6 +904,7 @@ impl Message {
                 checksum_type = ChecksumType::CRCChecksum;
                 source = 1; // Source address is always 1 in CRC mode
             } else {
+                log::error!("Failed raw: {:?}", raw_msg);
                 return Err(ErrorType::ChecksumError);
             }
         }

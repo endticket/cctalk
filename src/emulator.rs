@@ -87,22 +87,22 @@ impl CCTalkEmu {
                 },
                 CoinDef {
                     inhibit: true,
-                    coin_id: "......".to_string(),
+                    coin_id: "EU500A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
                     inhibit: true,
-                    coin_id: "......".to_string(),
+                    coin_id: "EU1K0A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
                     inhibit: true,
-                    coin_id: "......".to_string(),
+                    coin_id: "EU2K0A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
                     inhibit: true,
-                    coin_id: "......".to_string(),
+                    coin_id: "EU4K0A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
@@ -135,14 +135,14 @@ impl CCTalkEmu {
         });
         self.client.send_message(&msg)
     }
-    pub fn create_message(&mut self, payload: Payload) -> Message {
+    fn create_message(&mut self, payload: Payload) -> Message {
         Message::new(1u8, self.address, payload, self.checksum_type)
     }
     pub fn read_messages(&mut self) -> Vec<Message> {
         let _received = self.client.read_messages();
         let received = match _received {
             Ok(data) => {
-                println!("Read: {:?}", data);
+                log::trace!("Read: {:?}", data);
                 data
             }
             Err(error) => {
@@ -166,7 +166,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (self.cc_equipment_cat_id.as_bytes().to_vec()),
                 });
-                //println!("Sent: {:?}", msg);
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::SimplePoll | HeaderType::PerformSelfcheck => {
@@ -177,6 +177,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (self.cc_prod_code.as_bytes().to_vec()),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestBuildCode => {
@@ -184,6 +185,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (self.cc_build_code.as_bytes().to_vec()),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestManufacturerId => {
@@ -191,6 +193,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (self.cc_manuf_id.as_bytes().to_vec()),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestSerialNumber => {
@@ -203,6 +206,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (serial),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestSoftwareRevision => {
@@ -210,6 +214,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (self.cc_software_rev.as_bytes().to_vec()),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestCommsRevision => {
@@ -217,6 +222,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (vec![1u8, 4u8, 4u8]),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::ModifyInhibitStatus => {
@@ -241,6 +247,7 @@ impl CCTalkEmu {
                     header: (HeaderType::Reply),
                     data: (bitmask.to_le_bytes().to_vec()),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestMasterInhibitStatus => {
@@ -283,6 +290,7 @@ impl CCTalkEmu {
                     header:(HeaderType::Reply),
                     data: (data),
                 });
+                log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestDataStorageAvailability => {

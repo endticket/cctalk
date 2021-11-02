@@ -198,11 +198,16 @@ impl CCTalkClient for SerialClient {
     fn set_bill_event(&mut self, _: BillEvent) {}
 
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
-        self.read()
+        self.read_all(1)
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
-        Ok(self.send(&msg)?)
+        let send_result = self.send(&msg);
+        self.buffer.clear();
+        match send_result {
+            Ok(r) => Ok(r),
+            Err(e) => Err(ClientError::IOError(e))
+        }
     }
 }
 
