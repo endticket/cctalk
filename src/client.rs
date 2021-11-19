@@ -170,7 +170,6 @@ impl SerialClient {
     }
 }
 
-#[allow(dead_code)]
 impl CCTalkClient for SerialClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError> {
         self.send(msg)?;

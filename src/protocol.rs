@@ -22,7 +22,6 @@ impl ChecksumType {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub enum HeaderType {
     FactorySetup,
     SimplePoll,
@@ -181,7 +180,6 @@ pub enum HeaderType {
 }
 
 impl HeaderType {
-    #[allow(dead_code)]
     pub fn from_u8(n: u8) -> HeaderType {
         match n {
             255 => HeaderType::FactorySetup,
@@ -341,7 +339,6 @@ impl HeaderType {
         }
     }
 
-    #[allow(dead_code)]
     pub fn to_u8(&self) -> u8 {
         match *self {
             HeaderType::FactorySetup => 255,
@@ -503,7 +500,6 @@ impl HeaderType {
 }
 
 #[derive(Debug, Clone, Copy)]
-#[allow(dead_code)]
 pub enum CoinAcceptorError {
     RejectCoin,
     InhibitedCoin,
@@ -558,7 +554,6 @@ pub enum CoinAcceptorError {
 }
 
 impl CoinAcceptorError {
-    #[allow(dead_code)]
     pub fn from_u8(n: u8) -> CoinAcceptorError {
         match n {
             1 => CoinAcceptorError::RejectCoin,
@@ -614,7 +609,6 @@ impl CoinAcceptorError {
         }
     }
 
-    #[allow(dead_code)]
     pub fn to_u8(&self) -> u8 {
         match *self {
             CoinAcceptorError::RejectCoin => 1,
@@ -672,7 +666,6 @@ impl CoinAcceptorError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum BillEvent {
     BillTypeValidatedAndSent1,
     BillTypeValidatedAndSent2,
@@ -712,7 +705,6 @@ pub enum BillEvent {
 }
 
 impl BillEvent {
-    #[allow(dead_code)]
     pub fn from_u8(n: (u8, u8)) -> BillEvent {
         match n {
             (1, 0) => BillEvent::BillTypeValidatedAndSent1,
@@ -753,7 +745,6 @@ impl BillEvent {
         }
     }
 
-    #[allow(dead_code)]
     pub fn to_u8(&self) -> (u8, u8) {
         match *self {
             BillEvent::BillTypeValidatedAndSent1 => (1, 0),
@@ -801,7 +792,6 @@ pub struct Payload {
     pub data: Data,
 }
 
-#[allow(dead_code)]
 impl Payload {
     pub fn encode(&self) -> Vec<u8> {
         let mut data_temp = self.data.clone();
@@ -828,7 +818,6 @@ impl Payload {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
 pub enum ErrorType {
     PartialMessage,
     ChecksumError,

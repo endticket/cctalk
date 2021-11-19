@@ -8,7 +8,6 @@ pub struct CCTalkDevice {
     pub counter: u8,
 }
 
-#[allow(dead_code)]
 impl CCTalkDevice {
     pub fn new(
         port_name: &String,
@@ -176,7 +175,6 @@ impl CCTalkDevice {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub fn request_scaling_factor(&mut self) -> Result<Payload, ClientError> {
         let message = self.create_message(Payload {
             header: HeaderType::RequestCountryScalingFactor,
