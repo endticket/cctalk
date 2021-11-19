@@ -2,7 +2,7 @@ use crate::client::*;
 use crate::protocol::*;
 
 pub struct CCTalkDevice {
-    pub client: Box<CCTalkClient + 'static>,
+    pub client: Box<dyn CCTalkClient + 'static>,
     address: Address,
     checksum_type: ChecksumType,
     pub counter: u8,
@@ -17,7 +17,7 @@ impl CCTalkDevice {
         checksum_type: ChecksumType,
         mock: bool,
     ) -> Result<CCTalkDevice, ClientError> {
-        let temp_client: Box<CCTalkClient + 'static> = match mock {
+        let temp_client: Box<dyn CCTalkClient + 'static> = match mock {
             false => Box::new(SerialClient::new(port_name, serial_settings)?),
             true => Box::new(DummyClient::new()),
         };
