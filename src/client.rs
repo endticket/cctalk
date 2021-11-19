@@ -1,7 +1,6 @@
 use serial::prelude::*;
 use std;
 use std::convert;
-use std::error::Error;
 use std::io::ErrorKind::TimedOut;
 use std::io::{Read, Write};
 use std::time::Duration;
@@ -38,10 +37,10 @@ impl Clone for ClientError {
         match self {
             &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
             &ClientError::IOError(ref e) => {
-                ClientError::IOError(std::io::Error::new(e.kind(), e.description()))
+                ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
             &ClientError::SerialError(ref e) => {
-                ClientError::SerialError(serial::Error::new(e.kind(), e.description()))
+                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
             }
         }
     }
