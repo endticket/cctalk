@@ -50,6 +50,8 @@ pub trait CCTalkClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError>;
     fn get_address(&self) -> Address;
     fn set_bill_event(&mut self, bill_event: BillEvent);
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError>;
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError>;
 }
 
 pub struct SerialClient {
@@ -194,6 +196,14 @@ impl CCTalkClient for SerialClient {
     }
 
     fn set_bill_event(&mut self, _: BillEvent) {}
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        self.read()
+    }
+
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
+        Ok(self.send(&msg)?)
+    }
 }
 
 pub struct DummyClient {
@@ -243,5 +253,13 @@ impl CCTalkClient for DummyClient {
     fn set_bill_event(&mut self, bill_event: BillEvent) {
         self.bill_event = bill_event;
         self.changed = true;
+    }
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        Ok(Vec::<Message>::new())
+    }
+
+    fn send_message(&mut self, _msg: &Message) -> Result<(), ClientError> {
+        Ok(())
     }
 }
