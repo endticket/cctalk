@@ -5,8 +5,7 @@ pub type Data = Vec<u8>;
 
 pub type CRC = [u8; 2];
 
-#[derive(Debug)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum ChecksumType {
     SimpleChecksum,
     CRCChecksum,
@@ -22,8 +21,7 @@ impl ChecksumType {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
 pub enum HeaderType {
     FactorySetup,
@@ -504,8 +502,7 @@ impl HeaderType {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
 pub enum CoinAcceptorError {
     RejectCoin,
@@ -798,8 +795,7 @@ impl BillEvent {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Payload {
     pub header: HeaderType,
     pub data: Data,
@@ -831,9 +827,7 @@ impl Payload {
     }
 }
 
-#[derive(Debug)]
-#[derive(Clone, Copy)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(dead_code)]
 pub enum ErrorType {
     PartialMessage,
@@ -853,7 +847,12 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(destination: Address, source: Address, payload: Payload, checksum_type: ChecksumType) -> Message {
+    pub fn new(
+        destination: Address,
+        source: Address,
+        payload: Payload,
+        checksum_type: ChecksumType,
+    ) -> Message {
         let length = payload.data.len();
         Message {
             destination: destination,
@@ -887,7 +886,6 @@ impl Message {
     }
 
     pub fn decode(raw: &mut Vec<u8>) -> Result<Message, ErrorType> {
-
         // debug!("Decoding raw: {:?}", raw);
 
         let msg_length = raw.len() as u16;
@@ -934,19 +932,19 @@ impl Message {
         };
 
         Ok(Message {
-               destination: destination,
-               length: data_length,
-               source: source,
-               payload: payload,
-               checksum_type: checksum_type,
-           })
+            destination: destination,
+            length: data_length,
+            source: source,
+            payload: payload,
+            checksum_type: checksum_type,
+        })
     }
 
     pub fn calc_checksum(&self) -> u8 {
-
         let payload_sum = self.payload.sum();
 
-        let sum: u16 = payload_sum + self.destination as u16 + self.length as u16 + self.source as u16;
+        let sum: u16 =
+            payload_sum + self.destination as u16 + self.length as u16 + self.source as u16;
 
         let checksum = sum % 256;
 
@@ -958,7 +956,6 @@ impl Message {
     }
 
     pub fn calc_own_crc(&self) -> CRC {
-
         let mut data = Vec::<u8>::new();
 
         data.push(self.destination);

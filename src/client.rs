@@ -1,10 +1,10 @@
 use serial::prelude::*;
 use std;
-use std::io::{Write, Read};
+use std::convert;
 use std::error::Error;
 use std::io::ErrorKind::TimedOut;
+use std::io::{Read, Write};
 use std::time::Duration;
-use std::convert;
 
 use protocol::*;
 
@@ -37,8 +37,12 @@ impl Clone for ClientError {
     fn clone(&self) -> Self {
         match self {
             &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
-            &ClientError::IOError(ref e) => ClientError::IOError(std::io::Error::new(e.kind(), e.description())),
-            &ClientError::SerialError(ref e) => ClientError::SerialError(serial::Error::new(e.kind(), e.description())),
+            &ClientError::IOError(ref e) => {
+                ClientError::IOError(std::io::Error::new(e.kind(), e.description()))
+            }
+            &ClientError::SerialError(ref e) => {
+                ClientError::SerialError(serial::Error::new(e.kind(), e.description()))
+            }
         }
     }
 }
@@ -57,20 +61,26 @@ pub struct SerialClient {
 
 #[allow(dead_code)]
 impl SerialClient {
-    pub fn new(port_name: &String, serial_settings: &serial::PortSettings) -> Result<SerialClient, ClientError> {
+    pub fn new(
+        port_name: &String,
+        serial_settings: &serial::PortSettings,
+    ) -> Result<SerialClient, ClientError> {
         let mut port_temp = serial::open(&port_name)?;
 
         port_temp.configure(&serial_settings)?;
 
         Ok(SerialClient {
-               port: port_temp,
-               address: 1,
-               buffer: Vec::<u8>::new(),
-           })
+            port: port_temp,
+            address: 1,
+            buffer: Vec::<u8>::new(),
+        })
     }
 
-
-    fn read_and_decode(&mut self, received: &mut Vec<u8>, messages: &mut Vec<Message>) -> Result<(), ClientError> {
+    fn read_and_decode(
+        &mut self,
+        received: &mut Vec<u8>,
+        messages: &mut Vec<Message>,
+    ) -> Result<(), ClientError> {
         // debug!("Received: {:?}", received);
         self.buffer.append(received);
         // debug!("Buffer: {:?}", self.buffer);
@@ -122,7 +132,6 @@ impl SerialClient {
     }
 
     fn read(&mut self) -> Result<Vec<Message>, ClientError> {
-
         let mut messages = Vec::<Message>::new();
 
         let mut counter = 0;
@@ -140,7 +149,9 @@ impl SerialClient {
     fn read_all(&mut self, timeout: u64) -> Result<Vec<Message>, ClientError> {
         let old_timeout = self.port.timeout();
 
-        self.port.set_timeout(Duration::from_millis(timeout)).unwrap();
+        self.port
+            .set_timeout(Duration::from_millis(timeout))
+            .unwrap();
 
         let mut messages = Vec::<Message>::new();
 
@@ -157,7 +168,6 @@ impl SerialClient {
         self.port.set_timeout(old_timeout).unwrap();
 
         Ok(messages)
-
     }
 }
 
@@ -176,7 +186,10 @@ impl CCTalkClient for SerialClient {
             }
         } else {
             if self.buffer.len() != 0 {
-                debug!("Message not received in time, clearing partial message from buffer: {:?}", self.buffer);
+                debug!(
+                    "Message not received in time, clearing partial message from buffer: {:?}",
+                    self.buffer
+                );
                 self.buffer.clear();
             }
             Err(ClientError::CCTalkError(ErrorType::NoResponse))
@@ -219,16 +232,14 @@ impl CCTalkClient for DummyClient {
                 }
 
                 Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![self.counter, byte1, byte2],
-                   })
+                    header: HeaderType::Reply,
+                    data: vec![self.counter, byte1, byte2],
+                })
             }
-            _ => {
-                Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![],
-                   })
-            }
+            _ => Ok(Payload {
+                header: HeaderType::Reply,
+                data: vec![],
+            }),
         }
     }
 
