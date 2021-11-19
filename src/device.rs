@@ -1,6 +1,5 @@
-extern crate serial;
-use client::*;
-use protocol::*;
+use crate::client::*;
+use crate::protocol::*;
 
 pub struct CCTalkDevice {
     pub client: Box<CCTalkClient + 'static>,
@@ -150,10 +149,10 @@ impl CCTalkDevice {
 
             match payload {
                 Ok(coin_id) => {
-                    // debug!("Coin id raw: {:?}", coin_id);
-                    debug!("Coin id: {}", coin_id.as_str().unwrap());
+                    // log::debug!("Coin id raw: {:?}", coin_id);
+                    log::debug!("Coin id: {}", coin_id.as_str().unwrap());
                 }
-                Err(e) => error!("Response error: {:?}", e),
+                Err(e) => log::error!("Response error: {:?}", e),
             }
         }
         Ok(())
@@ -169,9 +168,9 @@ impl CCTalkDevice {
 
             match payload {
                 Ok(bill_id) => {
-                    debug!("Bill id: {}", bill_id.as_str().unwrap());
+                    log::debug!("Bill id: {}", bill_id.as_str().unwrap());
                 }
-                Err(e) => error!("Response error: {:?}", e),
+                Err(e) => log::error!("Response error: {:?}", e),
             }
         }
         Ok(())

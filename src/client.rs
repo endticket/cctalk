@@ -6,7 +6,7 @@ use std::io::ErrorKind::TimedOut;
 use std::io::{Read, Write};
 use std::time::Duration;
 
-use protocol::*;
+use crate::protocol::*;
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -81,9 +81,9 @@ impl SerialClient {
         received: &mut Vec<u8>,
         messages: &mut Vec<Message>,
     ) -> Result<(), ClientError> {
-        // debug!("Received: {:?}", received);
+        // log::debug!("Received: {:?}", received);
         self.buffer.append(received);
-        // debug!("Buffer: {:?}", self.buffer);
+        // log::debug!("Buffer: {:?}", self.buffer);
 
         // decode will leave the remaining stuff in the buffer
         let decode_res = Message::decode(&mut self.buffer);
@@ -93,12 +93,12 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    // debug!("message to another recipient ignored");
+                    // log::debug!("message to another recipient ignored");
                     Ok(())
                 }
             }
             Err(ErrorType::PartialMessage) => {
-                // debug!("Partial message");
+                // log::debug!("Partial message");
                 Ok(())
             }
             Err(e) => Err(ClientError::CCTalkError(e)),
@@ -126,8 +126,8 @@ impl SerialClient {
 
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
-        // debug!("Sending CCTalk message: {:?}", msg);
-        // debug!("Sending CCTalk message encoded: {:?}", buf);
+        // log::debug!("Sending CCTalk message: {:?}", msg);
+        // log::debug!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
 
@@ -138,7 +138,7 @@ impl SerialClient {
 
         while (messages.len() < 1) && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            // debug!("Received on serial: {:?}", received);
+            // log::debug!("Received on serial: {:?} Counter: {}", received, counter);
             self.read_and_decode(&mut received, &mut messages)?;
             counter += 1;
         }
@@ -176,7 +176,7 @@ impl CCTalkClient for SerialClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError> {
         self.send(msg)?;
 
-        // debug!("Waiting for Reply");
+        // log::debug!("Waiting for Reply");
         let received = self.read()?;
         if received.len() > 0 {
             let ref reply = received[0];
@@ -186,7 +186,7 @@ impl CCTalkClient for SerialClient {
             }
         } else {
             if self.buffer.len() != 0 {
-                debug!(
+                log::debug!(
                     "Message not received in time, clearing partial message from buffer: {:?}",
                     self.buffer
                 );
@@ -211,7 +211,7 @@ pub struct DummyClient {
 
 impl DummyClient {
     pub fn new() -> DummyClient {
-        warn!("Creating MOCK CCTalk Client");
+        log::warn!("Creating MOCK CCTalk Client");
         DummyClient {
             counter: 1,
             bill_event: BillEvent::MasterInhibitActive,

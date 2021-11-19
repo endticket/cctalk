@@ -985,7 +985,7 @@ impl Message {
 
     pub fn validate_checksum(raw: &Vec<u8>) -> bool {
         if raw.is_empty() {
-            error!("Validate checksum called on empty message!");
+            log::error!("Validate checksum called on empty message!");
             return false;
         }
 
@@ -999,7 +999,7 @@ impl Message {
 
     pub fn validate_crc(raw: &Vec<u8>) -> bool {
         if raw.is_empty() {
-            error!("Validate CRC called on empty message!");
+            log::error!("Validate CRC called on empty message!");
             return false;
         }
 

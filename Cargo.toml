@@ -5,7 +5,8 @@ license = "MIT"
 authors = ["Juhasz Sandor <blackghost1987@gmail.com>"]
 repository = "https://github.com/endticket/cctalk"
 description = "CCTalk protocol implementation for handling payment devices"
+edition = "2018"
 
 [dependencies]
 serial = "^0.4.0"
-log = "0.3"
+log = "0.4"
