@@ -8,5 +8,5 @@ description = "CCTalk protocol implementation for handling payment devices"
 edition = "2018"
 
 [dependencies]
-serial = "^0.4.0"
+serialport = "4"
 log = "0.4"

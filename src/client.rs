@@ -1,21 +1,21 @@
-use serial::prelude::*;
 use std;
 use std::convert;
 use std::io::ErrorKind::TimedOut;
 use std::io::{Read, Write};
 use std::time::Duration;
+use serialport;
 
 use crate::protocol::*;
 
 #[derive(Debug)]
 pub enum ClientError {
     CCTalkError(ErrorType),
-    SerialError(serial::Error),
+    SerialError(serialport::Error),
     IOError(std::io::Error),
 }
 
-impl convert::From<serial::Error> for ClientError {
-    fn from(e: serial::Error) -> ClientError {
+impl convert::From<serialport::Error> for ClientError {
+    fn from(e: serialport::Error) -> ClientError {
         ClientError::SerialError(e)
     }
 }
@@ -40,7 +40,7 @@ impl Clone for ClientError {
                 ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
             &ClientError::SerialError(ref e) => {
-                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
+                ClientError::SerialError(serialport::Error::new(e.kind(), e.to_string()))
             }
         }
     }
@@ -53,7 +53,7 @@ pub trait CCTalkClient {
 }
 
 pub struct SerialClient {
-    port: serial::SystemPort,
+    port: Box<dyn serialport::SerialPort>,
     pub address: Address,
     buffer: Vec<u8>,
 }
@@ -62,11 +62,9 @@ pub struct SerialClient {
 impl SerialClient {
     pub fn new(
         port_name: &String,
-        serial_settings: &serial::PortSettings,
+        serial_baud: u32,
     ) -> Result<SerialClient, ClientError> {
-        let mut port_temp = serial::open(&port_name)?;
-
-        port_temp.configure(&serial_settings)?;
+        let port_temp = serialport::new(port_name, serial_baud).open()?;
 
         Ok(SerialClient {
             port: port_temp,
