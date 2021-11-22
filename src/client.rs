@@ -1,9 +1,9 @@
+use serialport;
 use std;
 use std::convert;
 use std::io::ErrorKind::TimedOut;
 use std::io::{Read, Write};
 use std::time::Duration;
-use serialport;
 
 use crate::protocol::*;
 
@@ -64,10 +64,11 @@ pub struct SerialClient {
 impl SerialClient {
     pub fn new(
         port: Box<dyn serialport::SerialPort>,
+        address: Address,
     ) -> Result<SerialClient, ClientError> {
         Ok(SerialClient {
             port,
-            address: 1,
+            address,
             buffer: Vec::<u8>::new(),
         })
     }
@@ -89,7 +90,7 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    // log::debug!("message to another recipient ignored");
+                    log::trace!("message to another recipient {} ignored", message.destination);
                     Ok(())
                 }
             }
@@ -123,7 +124,7 @@ impl SerialClient {
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
         // log::debug!("Sending CCTalk message: {:?}", msg);
-        // log::debug!("Sending CCTalk message encoded: {:?}", buf);
+        log::trace!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
 
@@ -206,7 +207,7 @@ impl CCTalkClient for SerialClient {
         self.buffer.clear();
         match send_result {
             Ok(r) => Ok(r),
-            Err(e) => Err(ClientError::IOError(e))
+            Err(e) => Err(ClientError::IOError(e)),
         }
     }
 }

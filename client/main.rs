@@ -1,7 +1,6 @@
 use clap::{App, Arg};
 use std::time::Duration;
-use cctalk::{device::CCTalkDevice, protocol::{ChecksumType, Message}};
-use std::thread;
+use cctalk::{device::CCTalkDevice, protocol::ChecksumType};
 
 const PROGRAM: Option<&'static str> = option_env!("CARGO_PKG_NAME");
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -31,9 +30,15 @@ fn main() {
         .open()
         .expect("Failed to open port");
 
-    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial).unwrap());
+    // TODO: Device emulator currently sends responses only to address 1
+    let our_address = 1u8;
+    let client_address = 20u8;
 
-    let mut cctalk = CCTalkDevice::new(serial_dev, 1, ChecksumType::SimpleChecksum).unwrap();
+    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, our_address).unwrap());
 
-    cctalk.request_equipment_category();
+    let mut cctalk = CCTalkDevice::new(serial_dev, client_address, ChecksumType::SimpleChecksum).unwrap();
+
+    let resp = cctalk.request_equipment_category().unwrap();
+
+    println!("{}", resp);
 }

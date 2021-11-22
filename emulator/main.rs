@@ -1,7 +1,10 @@
+use cctalk::{
+    emulator::CCTalkEmu,
+    protocol::{ChecksumType, Message},
+};
 use clap::{App, Arg};
-use std::time::Duration;
-use cctalk::{emulator::CCTalkEmu, protocol::{ChecksumType, Message}};
 use std::thread;
+use std::time::Duration;
 
 const PROGRAM: Option<&'static str> = option_env!("CARGO_PKG_NAME");
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -31,16 +34,24 @@ fn main() {
         .open()
         .expect("Failed to open port");
 
-    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial).unwrap());
+    // TODO: Revisit this
+    let our_address = 20;
+    let target_address = 2;
+    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, our_address).unwrap());
 
-    let mut cctalk = CCTalkEmu::new(serial_dev, 2, ChecksumType::SimpleChecksum).unwrap();
+    let mut cctalk =
+        CCTalkEmu::new(serial_dev, target_address, ChecksumType::SimpleChecksum).unwrap();
 
     loop {
         let mut msg: Vec<Message> = cctalk.read_messages();
 
-        if msg.len() > 0 {
+        while msg.len() > 0 {
             log::info!("<- {:?}", &msg);
+            cctalk.reply_message(&msg.remove(0)).unwrap();
+
+            thread::sleep(Duration::from_millis(20));
         }
+
         thread::sleep(Duration::from_millis(100));
     }
 }

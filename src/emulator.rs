@@ -136,6 +136,7 @@ impl CCTalkEmu {
         self.client.send_message(&msg)
     }
     fn create_message(&mut self, payload: Payload) -> Message {
+        // TODO: Fix the hardcoded destination address
         Message::new(1u8, self.address, payload, self.checksum_type)
     }
     pub fn read_messages(&mut self) -> Vec<Message> {
