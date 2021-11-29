@@ -35,12 +35,14 @@ fn main() {
         .expect("Failed to open port");
 
     // TODO: Revisit this
-    let our_address = 20;
-    let target_address = 2;
+    let our_address = 2;
+    let target_address = 1;
     let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, our_address).unwrap());
 
     let mut cctalk =
         CCTalkEmu::new(serial_dev, target_address, ChecksumType::SimpleChecksum).unwrap();
+
+    println!("Set up device with address = {}", our_address);
 
     loop {
         let mut msg: Vec<Message> = cctalk.read_messages();
