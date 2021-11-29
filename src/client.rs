@@ -90,7 +90,10 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    log::trace!("message to another recipient {} ignored", message.destination);
+                    log::trace!(
+                        "message to another recipient {} ignored",
+                        message.destination
+                    );
                     Ok(())
                 }
             }

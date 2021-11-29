@@ -150,8 +150,7 @@ impl CCTalkEmu {
                 match error {
                     ClientError::CCTalkError(ErrorType::ChecksumError) => {
                         println!("Checksum error");
-                        
-                    },
+                    }
                     _ => panic!("Client error: {:?}", error),
                 }
                 vec![]
@@ -170,9 +169,7 @@ impl CCTalkEmu {
                 log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
-            HeaderType::SimplePoll | HeaderType::PerformSelfcheck => {
-                self.ack()
-            }
+            HeaderType::SimplePoll | HeaderType::PerformSelfcheck => self.ack(),
             HeaderType::RequestProductCode => {
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
@@ -202,7 +199,7 @@ impl CCTalkEmu {
                 serial.push(self.cc_serial.checked_rem_euclid(256).expect("SN error") as u8);
                 serial.push(self.cc_serial.checked_div_euclid(256).expect("SN error") as u8);
                 serial.push(0u8);
-                
+
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (serial),
@@ -227,9 +224,10 @@ impl CCTalkEmu {
                 self.client.send_message(&msg)
             }
             HeaderType::ModifyInhibitStatus => {
-                let bitmask =u16::from_le_bytes([message.payload.data[0], message.payload.data[1]]);
+                let bitmask =
+                    u16::from_le_bytes([message.payload.data[0], message.payload.data[1]]);
                 for i in 0..16 {
-                    if bitmask & (1<<i) != 0 {
+                    if bitmask & (1 << i) != 0 {
                         self.cc_coin_table[i].inhibit = false;
                     } else {
                         self.cc_coin_table[i].inhibit = true;
@@ -238,10 +236,10 @@ impl CCTalkEmu {
                 self.ack()
             }
             HeaderType::RequestInhibitStatus => {
-                let mut bitmask:u16 = 0;
+                let mut bitmask: u16 = 0;
                 for i in 0..16 {
                     if self.cc_coin_table[i].inhibit == false {
-                        bitmask = bitmask | (1<<i);
+                        bitmask = bitmask | (1 << i);
                     }
                 }
                 let msg = self.create_message(Payload {
@@ -252,7 +250,7 @@ impl CCTalkEmu {
                 self.client.send_message(&msg)
             }
             HeaderType::RequestMasterInhibitStatus => {
-                let status:u8;
+                let status: u8;
                 if self.cc_master_inhibit {
                     status = 0u8;
                 } else {
@@ -275,7 +273,10 @@ impl CCTalkEmu {
             HeaderType::RequestCoinId => {
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_coin_table[usize::from(message.payload.data[0]-1)].coin_id.as_bytes().to_vec()),
+                    data: (self.cc_coin_table[usize::from(message.payload.data[0] - 1)]
+                        .coin_id
+                        .as_bytes()
+                        .to_vec()),
                 });
                 self.client.send_message(&msg)
             }
@@ -287,8 +288,8 @@ impl CCTalkEmu {
 
                 //println!("Data: {:?}", data);
                 //println!("CB: {:?}", self.credit_buffer);
-                let msg = self.create_message(Payload{
-                    header:(HeaderType::Reply),
+                let msg = self.create_message(Payload {
+                    header: (HeaderType::Reply),
                     data: (data),
                 });
                 log::trace!("Sent: {:?}", msg);
@@ -296,7 +297,7 @@ impl CCTalkEmu {
             }
             HeaderType::RequestDataStorageAvailability => {
                 let data: Vec<u8> = vec![0, 0, 0, 0, 0];
-                let msg = self.create_message(Payload{
+                let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (data),
                 });
@@ -311,7 +312,7 @@ impl CCTalkEmu {
             HeaderType::RequestPollingPriority => {
                 // Polling in 200ms intervals
                 let data: Vec<u8> = vec![2, 20];
-                let msg = self.create_message(Payload{
+                let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (data),
                 });
@@ -320,7 +321,7 @@ impl CCTalkEmu {
             HeaderType::RequestDatabaseVersion => {
                 // Remote programming not supported
                 let data: Vec<u8> = vec![0];
-                let msg = self.create_message(Payload{
+                let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (data),
                 });
@@ -329,7 +330,9 @@ impl CCTalkEmu {
             HeaderType::RequestSorterPaths => {
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (vec![self.cc_coin_table[usize::from(message.payload.data[0]-1)].sort_path]),
+                    data: (vec![
+                        self.cc_coin_table[usize::from(message.payload.data[0] - 1)].sort_path,
+                    ]),
                 });
                 self.client.send_message(&msg)
             }
