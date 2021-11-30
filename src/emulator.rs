@@ -13,7 +13,7 @@ pub struct CCTalkEmu {
     client: Box<dyn CCTalkClient + 'static>,
     address: Address,
     checksum_type: ChecksumType,
-    pub counter: u8,
+    counter: u8,
     cc_equipment_cat_id: String,
     cc_serial: u16,
     cc_master_inhibit: bool,
@@ -394,17 +394,18 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_long_flow() {
-        macro_rules! send {
-            ($cctalk: expr, $channels: expr, $data: expr) => {{
-                $channels.0.send($data).unwrap();
-                let msg = $cctalk.read_messages().pop().unwrap();
-                $cctalk.reply_message(&msg).unwrap();
-                $channels.1.try_recv().unwrap()
-            }};
-        }
+    macro_rules! send {
+        ($cctalk: expr, $channels: expr, $data: expr) => {{
+            $channels.0.send($data).unwrap();
+            let msg = $cctalk.read_messages().pop().unwrap();
+            $cctalk.reply_message(&msg).unwrap();
+            $channels.1.try_recv().unwrap()
+        }};
+    }
 
+
+    #[test]
+    fn test_full_initialization_flow() {
         let (btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
         let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
@@ -659,14 +660,108 @@ mod tests {
             vec![1, 2, 2, 0, 255, 0, 252]
         );
 
-        /*
-        2 0 1 229 24 ; Read buffered credit or error codes
-        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
-        2 0 1 229 24
-        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
-        2 0 1 229 24
-        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
-        2
-        */
+        // Read buffered credit or error codes
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 242]
+        );
+
+    }
+
+    #[test]
+    fn test_coin_insert() {
+        let (btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+        let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+
+        let client = MPSCTestClient::new(brx, mtx);
+        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+
+        let channels = (&btx, &mrx);
+
+        // Read buffered credit or error codes
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 242]
+        );
+
+        // 1.
+        cctalk.add_credit(3);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 1, 3, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0xEC]
+        );
+
+        // 2..
+        cctalk.add_credit(2);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 2, 2, 1, 3, 2, 0, 0, 0, 0, 0, 0, 0xE8]
+        );
+
+        // 3...
+        cctalk.add_credit(3);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 3, 3, 2, 2, 1, 3, 2, 0, 0, 0, 0, 0xE2]
+        );
+
+        // 4....
+        cctalk.add_credit(3);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 4, 3, 2, 3, 2, 2, 1, 3, 2, 0, 0, 0xDC]
+        );
+
+        // 5....
+        cctalk.add_credit(2);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 5, 2, 1, 3, 2, 3, 2, 2, 1, 3, 2, 0xD8]
+        );
+
+        // 6......
+        cctalk.add_credit(1);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 6, 1, 3, 2, 1, 3, 2, 3, 2, 2, 1, 0xD8]
+        );
+
+        // 7.......
+        cctalk.add_credit(2);
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 229, 24]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 11, 2, 0, 7, 2, 1, 1, 3, 2, 1, 3, 2, 3, 2, 0xD7]
+        );
+    }
+
+    #[test]
+    fn test_counter_wrap() {
+        // TODO: We don't need Sender/Receiver here..
+        let (_btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+        let (mtx, _mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+
+        let client = MPSCTestClient::new(brx, mtx);
+        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+
+        // On startup, credit counter is 0
+        assert_eq!(cctalk.counter, 0);
+
+        for _i in 0..255 {
+            cctalk.add_credit(1);
+        }
+        assert_eq!(cctalk.counter, 255);
+
+        // After overflow, we must skip 0
+        cctalk.add_credit(1);
+        assert_eq!(cctalk.counter, 1);
     }
 }
