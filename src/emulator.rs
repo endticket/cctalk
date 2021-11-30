@@ -1,7 +1,7 @@
 use crate::client::*;
 use crate::protocol::*;
 
-#[allow(dead_code)]
+#[derive(Debug)]
 struct CoinDef {
     inhibit: bool,
     coin_id: String,
@@ -46,42 +46,42 @@ impl CCTalkEmu {
             credit_buffer: vec![0u8; 10],
             cc_coin_table: [
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "EU020A".to_string(),
                     sort_path: 3u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "EU050A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "EU100A".to_string(),
                     sort_path: 2u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "EU200A".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "SE100C".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "SE200B".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "SE500B".to_string(),
                     sort_path: 1u8,
                 },
                 CoinDef {
-                    inhibit: true,
+                    inhibit: false,
                     coin_id: "SE1K0A".to_string(),
                     sort_path: 1u8,
                 },
@@ -436,7 +436,6 @@ mod tests {
             // ACK
             vec![1, 0, 2, 0, 253]
         );
-
         assert_eq!(cctalk.cc_master_inhibit, true);
 
         // Request polling priority
@@ -507,16 +506,21 @@ mod tests {
         );
         assert_eq!(cctalk.cc_master_inhibit, true);
 
-        // TODO: Figure this out..
         // Request inhibit status
-        /*
         let resp = send!(cctalk, channels, vec![2, 0, 1, 230, 23]);
         assert_eq!(
             resp.encode(),
             // Channels 0-7 active
             vec![1, 2, 2, 0, 255, 0, 252]
         );
-        */
+        for i in 0..=7 {
+            let cc = &cctalk.cc_coin_table[i];
+            assert_eq!(cc.inhibit, false);
+        }
+        for i in 8..cctalk.cc_coin_table.len() {
+            let cc = &cctalk.cc_coin_table[i];
+            assert_eq!(cc.inhibit, true);
+        }
 
         // Request coin id from channel 1
         let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 1, 67]);
@@ -582,7 +586,8 @@ mod tests {
             vec![1, 6, 2, 0, 83, 69, 49, 75, 48, 65, 114]
         );
 
-        // Skip coin ids from channels 9..12
+        // TODO: Skip coin ids from channels 9..12, until we have
+        // customization functionality to match the real data
 
         // Request coin ids from channels 13..16 (all are empty)
         for i in 13..16 {
@@ -630,20 +635,21 @@ mod tests {
         1 4 2 0 1 4 4 4 236
         */
 
-        // Modify inhibit status (enables all coin channels)
+        // Modify inhibit status (enables all configured coin channels 0..7)
         let resp = send!(cctalk, channels, vec![2, 2, 1, 231, 255, 0, 21]);
         assert_eq!(
             resp.encode(),
             // Inhibit disabled
             vec![1, 0, 2, 0, 253]
         );
-        // TODO: Broken
-        /*
-        for cc in &cctalk.cc_coin_table {
-            println!("{:?}", cc);
-            assert_eq!(cc.inhibit, false);
+        for (i, cc) in cctalk.cc_coin_table.iter().enumerate() {
+            // Channels 0..=7 are enabled
+            let status = match i {
+                0..=7 => false,
+                _ => true,
+            };
+            assert_eq!(cc.inhibit, status);
         }
-        */
 
         // TODO: works by accident?
         // Request inhibit status
