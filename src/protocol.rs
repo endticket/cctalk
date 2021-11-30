@@ -826,7 +826,7 @@ pub enum ErrorType {
     ParseError,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Message {
     pub destination: Address,
     pub length: u8,

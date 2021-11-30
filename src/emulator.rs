@@ -346,8 +346,322 @@ impl CCTalkEmu {
         } else {
             self.counter = cnt;
         }
-        self.credit_buffer.insert(0, self.cc_coin_table[usize::from(channel-1)].sort_path);
+        self.credit_buffer
+            .insert(0, self.cc_coin_table[usize::from(channel - 1)].sort_path);
         self.credit_buffer.insert(0, channel);
         self.credit_buffer.truncate(10);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::Message;
+
+    use std::sync::mpsc;
+    use std::sync::mpsc::{Receiver, Sender};
+
+    pub struct MPSCTestClient {
+        buf: Receiver<Vec<u8>>,
+        msg: Sender<Message>,
+    }
+
+    impl MPSCTestClient {
+        pub fn new(buf: Receiver<Vec<u8>>, msg: Sender<Message>) -> Self {
+            MPSCTestClient { buf, msg }
+        }
+    }
+
+    impl CCTalkClient for MPSCTestClient {
+        fn send_and_check_reply(&mut self, _msg: &Message) -> Result<Payload, ClientError> {
+            Ok(Payload {
+                header: HeaderType::Unknown(0),
+                data: vec![],
+            })
+        }
+        fn get_address(&self) -> Address {
+            2
+        }
+        fn set_bill_event(&mut self, _bill_event: BillEvent) {}
+        fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+            let mut buf = self.buf.recv().unwrap();
+            let msg = Message::decode(&mut buf)?;
+            Ok(vec![msg])
+        }
+        fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
+            self.msg.send(msg.clone()).unwrap();
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_long_flow() {
+        macro_rules! send {
+            ($cctalk: expr, $channels: expr, $data: expr) => {{
+                $channels.0.send($data).unwrap();
+                let msg = $cctalk.read_messages().pop().unwrap();
+                $cctalk.reply_message(&msg).unwrap();
+                $channels.1.try_recv().unwrap()
+            }};
+        }
+
+        let (btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
+        let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+
+        let client = MPSCTestClient::new(brx, mtx);
+        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+
+        let channels = (&btx, &mrx);
+
+        // Request equipment category id
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 245, 8]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 13, 2, 0, 67, 111, 105, 110, 32, 65, 99, 99, 101, 112, 116, 111, 114, 22]
+        );
+
+        /* TODO: Implement functionality to customize this
+        // Request serial number
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 242, 11]);
+        assert_eq!(
+            resp.encode(),
+            vec![1, 3, 2, 0, 149, 48, 16, 37]
+        );
+        */
+
+        // Modify master inhibit status: inhibit active
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 228, 0, 24]);
+        assert_eq!(
+            resp.encode(),
+            // ACK
+            vec![1, 0, 2, 0, 253]
+        );
+
+        assert_eq!(cctalk.cc_master_inhibit, true);
+
+        // Request polling priority
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 249, 4]);
+        assert_eq!(
+            resp.encode(),
+            // 10ms*20=200ms
+            vec![1, 2, 2, 0, 2, 20, 229]
+        );
+
+        // TODO: Implement customization functionality
+        // Request manufacturer id
+        /*
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 246, 7]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"CPS"
+            vec![1, 3, 2, 0, 67, 80, 83, 20]
+        );
+        */
+
+        // TODO: Implement customization functionality
+        // Request product code
+        /*
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 244, 9]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"Colibri"
+            vec![1, 7, 2, 0, 67, 111, 108, 105, 98, 114, 105, 50]
+        );
+        */
+
+        // Request database version
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 243, 10]);
+        assert_eq!(
+            resp.encode(),
+            // 0 = remote programming not available
+            vec![1, 1, 2, 0, 0, 252]
+        );
+        // TODO: Make it customizable
+        // Request software revision
+        /*
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 241, 12]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"412-005"
+            vec![1, 7, 2, 0, 52, 49, 50, 45, 48, 48, 53, 157]
+        );
+        */
+
+        // TODO: Make it customizable
+        // Request build code
+        /*
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 192, 61]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"DE0"
+            vec![1, 3, 2, 0, 68, 69, 48, 65]
+        );
+        */
+
+        // Request master inhibit status
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 227, 26]);
+        assert_eq!(
+            resp.encode(),
+            // Master inhibit active
+            vec![1, 1, 2, 0, 0, 252]
+        );
+        assert_eq!(cctalk.cc_master_inhibit, true);
+
+        // TODO: Figure this out..
+        // Request inhibit status
+        /*
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 230, 23]);
+        assert_eq!(
+            resp.encode(),
+            // Channels 0-7 active
+            vec![1, 2, 2, 0, 255, 0, 252]
+        );
+        */
+
+        // Request coin id from channel 1
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 1, 67]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"EU020A"
+            vec![1, 6, 2, 0, 69, 85, 48, 50, 48, 65, 138]
+        );
+
+        // Request coin id from channel 2
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 2, 66]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"EU050A"
+            vec![1, 6, 2, 0, 69, 85, 48, 53, 48, 65, 135]
+        );
+
+        // Request coin id from channel 3
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 3, 65]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"EU100A"
+            vec![1, 6, 2, 0, 69, 85, 49, 48, 48, 65, 139]
+        );
+
+        // Request coin id from channel 4
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 4, 64]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"EU200A"
+            vec![1, 6, 2, 0, 69, 85, 50, 48, 48, 65, 138]
+        );
+
+        // Request coin id from channel 5
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 5, 63]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"SE100C"
+            vec![1, 6, 2, 0, 83, 69, 49, 48, 48, 67, 139]
+        );
+
+        // Request coin id from channel 6
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 6, 62]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"SE200B"
+            vec![1, 6, 2, 0, 83, 69, 50, 48, 48, 66, 139]
+        );
+
+        // Request coin id from channel 7
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 7, 61]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"SE500B"
+            vec![1, 6, 2, 0, 83, 69, 53, 48, 48, 66, 136]
+        );
+
+        // Request coin id from channel 8
+        let resp = send!(cctalk, channels, vec![2, 1, 1, 184, 8, 60]);
+        assert_eq!(
+            resp.encode(),
+            // ASCII:"SE1K0A"
+            vec![1, 6, 2, 0, 83, 69, 49, 75, 48, 65, 114]
+        );
+
+        // Skip coin ids from channels 9..12
+
+        // Request coin ids from channels 13..16 (all are empty)
+        for i in 13..16 {
+            let resp = send!(cctalk, channels, vec![2, 1, 1, 184, i, 68 - i]);
+            assert_eq!(
+                resp.encode(),
+                // ASCII:"......"
+                vec![1, 6, 2, 0, 46, 46, 46, 46, 46, 46, 227]
+            );
+        }
+
+        /*
+         TODO...
+        2 1 1 209 1 42 ; Request sorter paths
+        1 4 2 0 3 4 4 4 234
+        2 1 1 209 2 41 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 3 40 ; Request sorter paths
+        1 4 2 0 2 4 4 4 235
+        2 1 1 209 4 39 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 5 38 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 6 37 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 7 36 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 8 35 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 9 34 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 10 33 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 11 32 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 12 31 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 13 30 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 14 29 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 15 28 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        2 1 1 209 16 27 ; Request sorter paths
+        1 4 2 0 1 4 4 4 236
+        */
+
+        // Modify inhibit status (enables all coin channels)
+        let resp = send!(cctalk, channels, vec![2, 2, 1, 231, 255, 0, 21]);
+        assert_eq!(
+            resp.encode(),
+            // Inhibit disabled
+            vec![1, 0, 2, 0, 253]
+        );
+        // TODO: Broken
+        /*
+        for cc in &cctalk.cc_coin_table {
+            println!("{:?}", cc);
+            assert_eq!(cc.inhibit, false);
+        }
+        */
+
+        // TODO: works by accident?
+        // Request inhibit status
+        let resp = send!(cctalk, channels, vec![2, 0, 1, 230, 23]);
+        assert_eq!(
+            resp.encode(),
+            // Inhibit disabled
+            vec![1, 2, 2, 0, 255, 0, 252]
+        );
+
+        /*
+        2 0 1 229 24 ; Read buffered credit or error codes
+        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
+        2 0 1 229 24
+        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
+        2 0 1 229 24
+        1 11 2 0 0 0 0 0 0 0 0 0 0 0 0 242
+        2
+        */
     }
 }
