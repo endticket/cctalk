@@ -651,12 +651,11 @@ mod tests {
             assert_eq!(cc.inhibit, status);
         }
 
-        // TODO: works by accident?
         // Request inhibit status
         let resp = send!(cctalk, channels, vec![2, 0, 1, 230, 23]);
         assert_eq!(
             resp.encode(),
-            // Inhibit disabled
+            // Inhibit disabled on channels 0-7
             vec![1, 2, 2, 0, 255, 0, 252]
         );
 
