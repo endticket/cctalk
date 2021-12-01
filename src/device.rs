@@ -1,5 +1,7 @@
 use crate::client::*;
 use crate::protocol::*;
+// Reimports
+pub use crate::coinacceptor::CCTalkEmu as CoinAcceptor;
 
 pub struct CCTalkDevice {
     pub client: Box<dyn CCTalkClient + 'static>,
