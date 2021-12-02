@@ -9,7 +9,7 @@ struct CoinDef {
 }
 
 #[allow(dead_code)]
-pub struct CCTalkEmu {
+pub struct CoinAcceptor {
     client: Box<dyn CCTalkClient + 'static>,
     address: Address,
     checksum_type: ChecksumType,
@@ -25,13 +25,13 @@ pub struct CCTalkEmu {
     credit_buffer: Vec<u8>,
 }
 
-impl CCTalkEmu {
+impl CoinAcceptor {
     pub fn new(
         client: Box<dyn CCTalkClient + 'static>,
         address: Address,
         checksum_type: ChecksumType,
-    ) -> Result<CCTalkEmu, ClientError> {
-        Ok(CCTalkEmu {
+    ) -> Result<CoinAcceptor, ClientError> {
+        Ok(CoinAcceptor {
             client,
             address: address,
             checksum_type: checksum_type,
@@ -403,14 +403,14 @@ mod tests {
         }};
     }
 
-
     #[test]
     fn test_full_initialization_flow() {
         let (btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
         let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk =
+            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
 
         let channels = (&btx, &mrx);
 
@@ -666,7 +666,6 @@ mod tests {
             resp.encode(),
             vec![1, 11, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 242]
         );
-
     }
 
     #[test]
@@ -675,7 +674,8 @@ mod tests {
         let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk =
+            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
 
         let channels = (&btx, &mrx);
 
@@ -750,7 +750,8 @@ mod tests {
         let (mtx, _mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk = CCTalkEmu::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk =
+            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
 
         // On startup, credit counter is 0
         assert_eq!(cctalk.counter, 0);
