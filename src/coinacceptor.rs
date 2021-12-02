@@ -336,7 +336,10 @@ impl CoinAcceptor {
                 });
                 self.client.send_message(&msg)
             }
-            _ => Ok(()),
+            _ => {
+                log::warn!("Received unimplemented packet: {:?}", message.payload);
+                Ok(())
+            }
         }
     }
     pub fn add_credit(&mut self, channel: u8) {
