@@ -1,16 +1,59 @@
 use crate::client::*;
 use crate::protocol::*;
 
-#[derive(Debug)]
-struct CoinDef {
+/// Coin Configuration Information
+#[derive(Clone, Copy, Debug)]
+pub struct CoinInfo {
     inhibit: bool,
-    coin_id: String,
+    coin_id: &'static str,
     sort_path: u8,
 }
 
-#[allow(dead_code)]
+impl Default for CoinInfo {
+    fn default() -> Self {
+        CoinInfo {
+            inhibit: true,
+            coin_id: "......",
+            sort_path: 0,
+        }
+    }
+}
+
+/// Coin Table definition
+pub struct CoinTable {
+    slots: Box<[CoinInfo; 16]>,
+}
+
+impl Default for CoinTable {
+    fn default() -> Self {
+        CoinTable {
+            slots: Box::new([CoinInfo::default(); 16]),
+        }
+    }
+}
+
+impl CoinTable {
+    pub fn get_sort_path(&self, channel: u8) -> u8 {
+        self.slots[channel as usize].sort_path
+    }
+
+    pub fn get_coin_id(&self, channel: u8) -> &str {
+        self.slots[channel as usize].coin_id
+    }
+
+    pub fn get_inhibit(&self, channel: u8) -> bool {
+        self.slots[channel as usize].inhibit
+    }
+
+    pub fn set_coininfo(&mut self, channel: u8, coin: CoinInfo) {
+        self.slots[channel as usize] = coin;
+    }
+}
+
+/// Basic Coin Accepter implementation
 pub struct CoinAcceptor {
     client: Box<dyn CCTalkClient + 'static>,
+    /// By default 2, extra addresses include 11-17
     address: Address,
     checksum_type: ChecksumType,
     counter: u8,
@@ -21,19 +64,20 @@ pub struct CoinAcceptor {
     cc_prod_code: String,
     cc_software_rev: String,
     cc_build_code: String,
-    cc_coin_table: [CoinDef; 16],
     credit_buffer: Vec<u8>,
+    coin_table: CoinTable,
 }
 
 impl CoinAcceptor {
-    pub fn new(
+    pub fn init(
         client: Box<dyn CCTalkClient + 'static>,
         address: Address,
         checksum_type: ChecksumType,
+        coin_table: CoinTable,
     ) -> Result<CoinAcceptor, ClientError> {
         Ok(CoinAcceptor {
             client,
-            address: address,
+            address,
             checksum_type: checksum_type,
             counter: 0,
             cc_equipment_cat_id: "Coin Acceptor".to_string(),
@@ -44,88 +88,7 @@ impl CoinAcceptor {
             cc_software_rev: "EMU-000".to_string(),
             cc_build_code: "EE0".to_string(),
             credit_buffer: vec![0u8; 10],
-            cc_coin_table: [
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "EU020A".to_string(),
-                    sort_path: 3u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "EU050A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "EU100A".to_string(),
-                    sort_path: 2u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "EU200A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "SE100C".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "SE200B".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "SE500B".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: false,
-                    coin_id: "SE1K0A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "EU500A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "EU1K0A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "EU2K0A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "EU4K0A".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "......".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "......".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "......".to_string(),
-                    sort_path: 1u8,
-                },
-                CoinDef {
-                    inhibit: true,
-                    coin_id: "......".to_string(),
-                    sort_path: 1u8,
-                },
-            ],
+            coin_table: coin_table,
         })
     }
     fn ack(&mut self) -> Result<(), ClientError> {
@@ -136,7 +99,6 @@ impl CoinAcceptor {
         self.client.send_message(&msg)
     }
     fn create_message(&mut self, payload: Payload) -> Message {
-        // TODO: Fix the hardcoded destination address
         Message::new(1u8, self.address, payload, self.checksum_type)
     }
     pub fn read_messages(&mut self) -> Vec<Message> {
@@ -228,9 +190,9 @@ impl CoinAcceptor {
                     u16::from_le_bytes([message.payload.data[0], message.payload.data[1]]);
                 for i in 0..16 {
                     if bitmask & (1 << i) != 0 {
-                        self.cc_coin_table[i].inhibit = false;
+                        self.coin_table.slots[i].inhibit = false;
                     } else {
-                        self.cc_coin_table[i].inhibit = true;
+                        self.coin_table.slots[i].inhibit = true;
                     }
                 }
                 self.ack()
@@ -238,7 +200,7 @@ impl CoinAcceptor {
             HeaderType::RequestInhibitStatus => {
                 let mut bitmask: u16 = 0;
                 for i in 0..16 {
-                    if self.cc_coin_table[i].inhibit == false {
+                    if self.coin_table.get_inhibit(i) == false {
                         bitmask = bitmask | (1 << i);
                     }
                 }
@@ -273,8 +235,9 @@ impl CoinAcceptor {
             HeaderType::RequestCoinId => {
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_coin_table[usize::from(message.payload.data[0] - 1)]
-                        .coin_id
+                    data: (self
+                        .coin_table
+                        .get_coin_id(message.payload.data[0] - 1)
                         .as_bytes()
                         .to_vec()),
                 });
@@ -330,9 +293,7 @@ impl CoinAcceptor {
             HeaderType::RequestSorterPaths => {
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (vec![
-                        self.cc_coin_table[usize::from(message.payload.data[0] - 1)].sort_path,
-                    ]),
+                    data: (vec![self.coin_table.get_sort_path(message.payload.data[0] - 1)]),
                 });
                 self.client.send_message(&msg)
             }
@@ -350,7 +311,7 @@ impl CoinAcceptor {
             self.counter = cnt;
         }
         self.credit_buffer
-            .insert(0, self.cc_coin_table[usize::from(channel - 1)].sort_path);
+            .insert(0, self.coin_table.get_sort_path(channel - 1));
         self.credit_buffer.insert(0, channel);
         self.credit_buffer.truncate(10);
     }
@@ -406,14 +367,97 @@ mod tests {
         }};
     }
 
+    fn sample_filled_table() -> CoinTable {
+        let mut table = CoinTable::default();
+
+        table.set_coininfo(
+            0,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "EU020A",
+                sort_path: 3u8,
+            },
+        );
+
+        table.set_coininfo(
+            1,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "EU050A",
+                sort_path: 1u8,
+            },
+        );
+
+        table.set_coininfo(
+            2,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "EU100A",
+                sort_path: 2u8,
+            },
+        );
+
+        table.set_coininfo(
+            3,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "EU200A",
+                sort_path: 1u8,
+            },
+        );
+
+        table.set_coininfo(
+            4,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "SE100C",
+                sort_path: 1u8,
+            },
+        );
+
+        table.set_coininfo(
+            5,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "SE200B",
+                sort_path: 1u8,
+            },
+        );
+
+        table.set_coininfo(
+            6,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "SE500B",
+                sort_path: 1u8,
+            },
+        );
+
+        table.set_coininfo(
+            7,
+            CoinInfo {
+                inhibit: false,
+                coin_id: "SE1K0A",
+                sort_path: 1u8,
+            },
+        );
+
+        table
+    }
+
     #[test]
     fn test_full_initialization_flow() {
         let (btx, brx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
         let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk =
-            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk = CoinAcceptor::init(
+            Box::new(client),
+            2,
+            ChecksumType::SimpleChecksum,
+            sample_filled_table(),
+        )
+        .unwrap();
 
         let channels = (&btx, &mrx);
 
@@ -518,11 +562,11 @@ mod tests {
             vec![1, 2, 2, 0, 255, 0, 252]
         );
         for i in 0..=7 {
-            let cc = &cctalk.cc_coin_table[i];
+            let cc = &cctalk.coin_table.slots[i];
             assert_eq!(cc.inhibit, false);
         }
-        for i in 8..cctalk.cc_coin_table.len() {
-            let cc = &cctalk.cc_coin_table[i];
+        for i in 8..cctalk.coin_table.slots.len() {
+            let cc = &cctalk.coin_table.slots[i];
             assert_eq!(cc.inhibit, true);
         }
 
@@ -590,11 +634,8 @@ mod tests {
             vec![1, 6, 2, 0, 83, 69, 49, 75, 48, 65, 114]
         );
 
-        // TODO: Skip coin ids from channels 9..12, until we have
-        // customization functionality to match the real data
-
-        // Request coin ids from channels 13..16 (all are empty)
-        for i in 13..16 {
+        // Request coin ids from channels 9..16 (all are empty)
+        for i in 9..=16 {
             let resp = send!(cctalk, channels, vec![2, 1, 1, 184, i, 68 - i]);
             assert_eq!(
                 resp.encode(),
@@ -646,7 +687,7 @@ mod tests {
             // Inhibit disabled
             vec![1, 0, 2, 0, 253]
         );
-        for (i, cc) in cctalk.cc_coin_table.iter().enumerate() {
+        for (i, cc) in cctalk.coin_table.slots.iter().enumerate() {
             // Channels 0..=7 are enabled
             let status = match i {
                 0..=7 => false,
@@ -677,8 +718,13 @@ mod tests {
         let (mtx, mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk =
-            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk = CoinAcceptor::init(
+            Box::new(client),
+            2,
+            ChecksumType::SimpleChecksum,
+            sample_filled_table(),
+        )
+        .unwrap();
 
         let channels = (&btx, &mrx);
 
@@ -753,8 +799,13 @@ mod tests {
         let (mtx, _mrx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
         let client = MPSCTestClient::new(brx, mtx);
-        let mut cctalk =
-            CoinAcceptor::new(Box::new(client), 2, ChecksumType::SimpleChecksum).unwrap();
+        let mut cctalk = CoinAcceptor::init(
+            Box::new(client),
+            2,
+            ChecksumType::SimpleChecksum,
+            CoinTable::default(),
+        )
+        .unwrap();
 
         // On startup, credit counter is 0
         assert_eq!(cctalk.counter, 0);
