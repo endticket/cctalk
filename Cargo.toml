@@ -1,6 +1,6 @@
 [package]
 name = "cctalk"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT"
 authors = ["Juhasz Sandor <blackghost1987@gmail.com>"]
 repository = "https://github.com/endticket/cctalk"
