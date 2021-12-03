@@ -1,12 +1,11 @@
 use serial::prelude::*;
 use std;
-use std::io::{Write, Read};
-use std::error::Error;
-use std::io::ErrorKind::TimedOut;
-use std::time::Duration;
 use std::convert;
+use std::io::ErrorKind::TimedOut;
+use std::io::{Read, Write};
+use std::time::Duration;
 
-use protocol::*;
+use crate::protocol::*;
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -37,8 +36,12 @@ impl Clone for ClientError {
     fn clone(&self) -> Self {
         match self {
             &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
-            &ClientError::IOError(ref e) => ClientError::IOError(std::io::Error::new(e.kind(), e.description())),
-            &ClientError::SerialError(ref e) => ClientError::SerialError(serial::Error::new(e.kind(), e.description())),
+            &ClientError::IOError(ref e) => {
+                ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
+            }
+            &ClientError::SerialError(ref e) => {
+                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
+            }
         }
     }
 }
@@ -57,23 +60,29 @@ pub struct SerialClient {
 
 #[allow(dead_code)]
 impl SerialClient {
-    pub fn new(port_name: &String, serial_settings: &serial::PortSettings) -> Result<SerialClient, ClientError> {
+    pub fn new(
+        port_name: &String,
+        serial_settings: &serial::PortSettings,
+    ) -> Result<SerialClient, ClientError> {
         let mut port_temp = serial::open(&port_name)?;
 
         port_temp.configure(&serial_settings)?;
 
         Ok(SerialClient {
-               port: port_temp,
-               address: 1,
-               buffer: Vec::<u8>::new(),
-           })
+            port: port_temp,
+            address: 1,
+            buffer: Vec::<u8>::new(),
+        })
     }
 
-
-    fn read_and_decode(&mut self, received: &mut Vec<u8>, messages: &mut Vec<Message>) -> Result<(), ClientError> {
-        // debug!("Received: {:?}", received);
+    fn read_and_decode(
+        &mut self,
+        received: &mut Vec<u8>,
+        messages: &mut Vec<Message>,
+    ) -> Result<(), ClientError> {
+        // log::debug!("Received: {:?}", received);
         self.buffer.append(received);
-        // debug!("Buffer: {:?}", self.buffer);
+        // log::debug!("Buffer: {:?}", self.buffer);
 
         // decode will leave the remaining stuff in the buffer
         let decode_res = Message::decode(&mut self.buffer);
@@ -83,12 +92,12 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    // debug!("message to another recipient ignored");
+                    // log::debug!("message to another recipient ignored");
                     Ok(())
                 }
             }
             Err(ErrorType::PartialMessage) => {
-                // debug!("Partial message");
+                // log::debug!("Partial message");
                 Ok(())
             }
             Err(e) => Err(ClientError::CCTalkError(e)),
@@ -116,20 +125,19 @@ impl SerialClient {
 
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
-        // debug!("Sending CCTalk message: {:?}", msg);
-        // debug!("Sending CCTalk message encoded: {:?}", buf);
+        // log::debug!("Sending CCTalk message: {:?}", msg);
+        // log::debug!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
 
     fn read(&mut self) -> Result<Vec<Message>, ClientError> {
-
         let mut messages = Vec::<Message>::new();
 
         let mut counter = 0;
 
         while (messages.len() < 1) && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            // debug!("Received on serial: {:?}", received);
+            // log::debug!("Received on serial: {:?} Counter: {}", received, counter);
             self.read_and_decode(&mut received, &mut messages)?;
             counter += 1;
         }
@@ -140,7 +148,9 @@ impl SerialClient {
     fn read_all(&mut self, timeout: u64) -> Result<Vec<Message>, ClientError> {
         let old_timeout = self.port.timeout();
 
-        self.port.set_timeout(Duration::from_millis(timeout)).unwrap();
+        self.port
+            .set_timeout(Duration::from_millis(timeout))
+            .unwrap();
 
         let mut messages = Vec::<Message>::new();
 
@@ -157,16 +167,14 @@ impl SerialClient {
         self.port.set_timeout(old_timeout).unwrap();
 
         Ok(messages)
-
     }
 }
 
-#[allow(dead_code)]
 impl CCTalkClient for SerialClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError> {
         self.send(msg)?;
 
-        // debug!("Waiting for Reply");
+        // log::debug!("Waiting for Reply");
         let received = self.read()?;
         if received.len() > 0 {
             let ref reply = received[0];
@@ -176,7 +184,10 @@ impl CCTalkClient for SerialClient {
             }
         } else {
             if self.buffer.len() != 0 {
-                debug!("Message not received in time, clearing partial message from buffer: {:?}", self.buffer);
+                log::debug!(
+                    "Message not received in time, clearing partial message from buffer: {:?}",
+                    self.buffer
+                );
                 self.buffer.clear();
             }
             Err(ClientError::CCTalkError(ErrorType::NoResponse))
@@ -198,7 +209,7 @@ pub struct DummyClient {
 
 impl DummyClient {
     pub fn new() -> DummyClient {
-        warn!("Creating MOCK CCTalk Client");
+        log::warn!("Creating MOCK CCTalk Client");
         DummyClient {
             counter: 1,
             bill_event: BillEvent::MasterInhibitActive,
@@ -219,16 +230,14 @@ impl CCTalkClient for DummyClient {
                 }
 
                 Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![self.counter, byte1, byte2],
-                   })
+                    header: HeaderType::Reply,
+                    data: vec![self.counter, byte1, byte2],
+                })
             }
-            _ => {
-                Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![],
-                   })
-            }
+            _ => Ok(Payload {
+                header: HeaderType::Reply,
+                data: vec![],
+            }),
         }
     }
 
