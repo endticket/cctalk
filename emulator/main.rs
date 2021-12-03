@@ -34,20 +34,17 @@ fn main() {
         .open()
         .expect("Failed to open port");
 
-    // TODO: Revisit this
-    let our_address = 2;
-    let target_address = 1;
-    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, our_address).unwrap());
+    let device_address = 2;
+    let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, device_address).unwrap());
 
     let mut cctalk = CoinAcceptor::init(
         serial_dev,
-        target_address,
         ChecksumType::SimpleChecksum,
         CoinTable::default(),
     )
     .unwrap();
 
-    println!("Set up device with address = {}", our_address);
+    println!("Set up device with address = {}", device_address);
 
     loop {
         let mut msg: Vec<Message> = cctalk.read_messages();

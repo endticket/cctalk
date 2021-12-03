@@ -51,9 +51,10 @@ impl CoinTable {
 }
 
 /// Basic Coin Accepter implementation
+/// By default, "Coin Acceptor" devices use address=2,
+/// extra addresses include 11-17.
 pub struct CoinAcceptor {
     client: Box<dyn CCTalkClient + 'static>,
-    /// By default 2, extra addresses include 11-17
     address: Address,
     checksum_type: ChecksumType,
     counter: u8,
@@ -71,13 +72,13 @@ pub struct CoinAcceptor {
 impl CoinAcceptor {
     pub fn init(
         client: Box<dyn CCTalkClient + 'static>,
-        address: Address,
         checksum_type: ChecksumType,
         coin_table: CoinTable,
     ) -> Result<CoinAcceptor, ClientError> {
+        let addr = &client.get_address();
         Ok(CoinAcceptor {
             client,
-            address,
+            address: *addr,
             checksum_type: checksum_type,
             counter: 0,
             cc_equipment_cat_id: "Coin Acceptor".to_string(),
@@ -453,7 +454,6 @@ mod tests {
         let client = MPSCTestClient::new(brx, mtx);
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
-            2,
             ChecksumType::SimpleChecksum,
             sample_filled_table(),
         )
@@ -720,7 +720,6 @@ mod tests {
         let client = MPSCTestClient::new(brx, mtx);
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
-            2,
             ChecksumType::SimpleChecksum,
             sample_filled_table(),
         )
@@ -801,7 +800,6 @@ mod tests {
         let client = MPSCTestClient::new(brx, mtx);
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
-            2,
             ChecksumType::SimpleChecksum,
             CoinTable::default(),
         )
