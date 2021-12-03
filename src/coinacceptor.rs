@@ -50,6 +50,21 @@ impl CoinTable {
     }
 }
 
+/// CCTalk Core and Core Plus Information fields
+pub struct CoreInfo {
+    // Core fields
+    pub manufacturer: &'static str,
+    // equipment_category_id is supplied with main device information
+    pub product_code: &'static str,
+    pub build_code: &'static str,
+    // Core Plus fields
+    // TODO: serial number handling is currently not really working properly
+    // There are devices that return 3 bytes as serial.
+    pub serial_number: u16,
+    pub software_revision: &'static str,
+    // TODO: comms_revision - hardcoded for now... ?
+}
+
 /// Basic Coin Accepter implementation
 /// By default, "Coin Acceptor" devices use address=2,
 /// extra addresses include 11-17.
@@ -59,37 +74,30 @@ pub struct CoinAcceptor {
     checksum_type: ChecksumType,
     counter: u8,
     cc_equipment_cat_id: String,
-    cc_serial: u16,
     cc_master_inhibit: bool,
-    cc_manuf_id: String,
-    cc_prod_code: String,
-    cc_software_rev: String,
-    cc_build_code: String,
     credit_buffer: Vec<u8>,
-    coin_table: CoinTable,
+    coin_table: Box<CoinTable>,
+    cctalk_info: Box<CoreInfo>,
 }
 
 impl CoinAcceptor {
     pub fn init(
         client: Box<dyn CCTalkClient + 'static>,
         checksum_type: ChecksumType,
-        coin_table: CoinTable,
+        coin_table: Box<CoinTable>,
+        cctalk_info: Box<CoreInfo>,
     ) -> Result<CoinAcceptor, ClientError> {
         let addr = &client.get_address();
         Ok(CoinAcceptor {
             client,
             address: *addr,
-            checksum_type: checksum_type,
+            checksum_type,
             counter: 0,
-            cc_equipment_cat_id: "Coin Acceptor".to_string(),
-            cc_serial: 123u16,
             cc_master_inhibit: true,
-            cc_manuf_id: "PAF".to_string(),
-            cc_prod_code: "Emulator".to_string(),
-            cc_software_rev: "EMU-000".to_string(),
-            cc_build_code: "EE0".to_string(),
+            cc_equipment_cat_id: "Coin Acceptor".to_string(),
             credit_buffer: vec![0u8; 10],
-            coin_table: coin_table,
+            coin_table,
+            cctalk_info,
         })
     }
     fn ack(&mut self) -> Result<(), ClientError> {
@@ -136,7 +144,7 @@ impl CoinAcceptor {
             HeaderType::RequestProductCode => {
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_prod_code.as_bytes().to_vec()),
+                    data: (self.cctalk_info.product_code.as_bytes().to_vec()),
                 });
                 log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
@@ -144,7 +152,7 @@ impl CoinAcceptor {
             HeaderType::RequestBuildCode => {
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_build_code.as_bytes().to_vec()),
+                    data: (self.cctalk_info.build_code.as_bytes().to_vec()),
                 });
                 log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
@@ -152,15 +160,17 @@ impl CoinAcceptor {
             HeaderType::RequestManufacturerId => {
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_manuf_id.as_bytes().to_vec()),
+                    data: (self.cctalk_info.manufacturer.as_bytes().to_vec()),
                 });
                 log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
             }
             HeaderType::RequestSerialNumber => {
+                // TODO: Fix this to take arbitrary bytes
                 let mut serial: Vec<u8> = Vec::new();
-                serial.push(self.cc_serial.checked_rem_euclid(256).expect("SN error") as u8);
-                serial.push(self.cc_serial.checked_div_euclid(256).expect("SN error") as u8);
+                let cc_serial = self.cctalk_info.serial_number;
+                serial.push(cc_serial.checked_rem_euclid(256).expect("SN error") as u8);
+                serial.push(cc_serial.checked_div_euclid(256).expect("SN error") as u8);
                 serial.push(0u8);
 
                 let msg: Message = self.create_message(Payload {
@@ -173,7 +183,7 @@ impl CoinAcceptor {
             HeaderType::RequestSoftwareRevision => {
                 let msg: Message = self.create_message(Payload {
                     header: (HeaderType::Reply),
-                    data: (self.cc_software_rev.as_bytes().to_vec()),
+                    data: (self.cctalk_info.software_revision.as_bytes().to_vec()),
                 });
                 log::trace!("Sent: {:?}", msg);
                 self.client.send_message(&msg)
@@ -368,7 +378,18 @@ mod tests {
         }};
     }
 
-    fn sample_filled_table() -> CoinTable {
+    fn fullflow_cctalk_info() -> CoreInfo {
+        // Core Information for fullflow test below
+        CoreInfo {
+            manufacturer: "CPS",
+            product_code: "Colibri",
+            build_code: "DE0",
+            software_revision: "412-005",
+            // TODO: This needs to be fixed..
+            serial_number: 123u16,
+        }
+    }
+    fn fullflow_cointable() -> CoinTable {
         let mut table = CoinTable::default();
 
         table.set_coininfo(
@@ -455,7 +476,8 @@ mod tests {
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
             ChecksumType::SimpleChecksum,
-            sample_filled_table(),
+            Box::new(fullflow_cointable()),
+            Box::new(fullflow_cctalk_info()),
         )
         .unwrap();
 
@@ -468,8 +490,8 @@ mod tests {
             vec![1, 13, 2, 0, 67, 111, 105, 110, 32, 65, 99, 99, 101, 112, 116, 111, 114, 22]
         );
 
-        /* TODO: Implement functionality to customize this
         // Request serial number
+        /* TODO: Implement it properly..
         let resp = send!(cctalk, channels, vec![2, 0, 1, 242, 11]);
         assert_eq!(
             resp.encode(),
@@ -494,27 +516,21 @@ mod tests {
             vec![1, 2, 2, 0, 2, 20, 229]
         );
 
-        // TODO: Implement customization functionality
         // Request manufacturer id
-        /*
         let resp = send!(cctalk, channels, vec![2, 0, 1, 246, 7]);
         assert_eq!(
             resp.encode(),
             // ASCII:"CPS"
             vec![1, 3, 2, 0, 67, 80, 83, 20]
         );
-        */
 
-        // TODO: Implement customization functionality
         // Request product code
-        /*
         let resp = send!(cctalk, channels, vec![2, 0, 1, 244, 9]);
         assert_eq!(
             resp.encode(),
             // ASCII:"Colibri"
             vec![1, 7, 2, 0, 67, 111, 108, 105, 98, 114, 105, 50]
         );
-        */
 
         // Request database version
         let resp = send!(cctalk, channels, vec![2, 0, 1, 243, 10]);
@@ -523,27 +539,21 @@ mod tests {
             // 0 = remote programming not available
             vec![1, 1, 2, 0, 0, 252]
         );
-        // TODO: Make it customizable
         // Request software revision
-        /*
         let resp = send!(cctalk, channels, vec![2, 0, 1, 241, 12]);
         assert_eq!(
             resp.encode(),
             // ASCII:"412-005"
             vec![1, 7, 2, 0, 52, 49, 50, 45, 48, 48, 53, 157]
         );
-        */
 
-        // TODO: Make it customizable
         // Request build code
-        /*
         let resp = send!(cctalk, channels, vec![2, 0, 1, 192, 61]);
         assert_eq!(
             resp.encode(),
             // ASCII:"DE0"
             vec![1, 3, 2, 0, 68, 69, 48, 65]
         );
-        */
 
         // Request master inhibit status
         let resp = send!(cctalk, channels, vec![2, 0, 1, 227, 26]);
@@ -721,7 +731,8 @@ mod tests {
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
             ChecksumType::SimpleChecksum,
-            sample_filled_table(),
+            Box::new(fullflow_cointable()),
+            Box::new(fullflow_cctalk_info()),
         )
         .unwrap();
 
@@ -801,7 +812,8 @@ mod tests {
         let mut cctalk = CoinAcceptor::init(
             Box::new(client),
             ChecksumType::SimpleChecksum,
-            CoinTable::default(),
+            Box::new(CoinTable::default()),
+            Box::new(fullflow_cctalk_info()),
         )
         .unwrap();
 

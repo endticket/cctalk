@@ -1,5 +1,5 @@
 use cctalk::{
-    device::{CoinAcceptor, CoinTable},
+    device::{CoinAcceptor, CoinTable, CoreInfo},
     protocol::{ChecksumType, Message},
 };
 use clap::{App, Arg};
@@ -36,11 +36,20 @@ fn main() {
 
     let device_address = 2;
     let serial_dev = Box::new(cctalk::client::SerialClient::new(serial, device_address).unwrap());
+    let device_info = CoreInfo {
+        manufacturer: "NONE",
+        product_code: "Test",
+        build_code: "A0",
+        software_revision: "000-000",
+        // TODO: This needs to be fixed..
+        serial_number: 123u16,
+    };
 
     let mut cctalk = CoinAcceptor::init(
         serial_dev,
         ChecksumType::SimpleChecksum,
-        CoinTable::default(),
+        Box::new(CoinTable::default()),
+        Box::new(device_info),
     )
     .unwrap();
 

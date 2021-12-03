@@ -1,7 +1,7 @@
 use crate::client::*;
 use crate::protocol::*;
 // Reimports
-pub use crate::coinacceptor::{CoinAcceptor, CoinInfo, CoinTable};
+pub use crate::coinacceptor::{CoinAcceptor, CoinInfo, CoinTable, CoreInfo};
 
 pub struct CCTalkDevice {
     pub client: Box<dyn CCTalkClient + 'static>,
