@@ -9,7 +9,7 @@ const DESCRIPTION: Option<&'static str> = option_env!("CARGO_PKG_DESCRIPTION");
 fn main() {
     env_logger::init();
 
-    let matches = App::new(PROGRAM.unwrap_or("cctalk-client"))
+    let matches = App::new(PROGRAM.unwrap_or("cctalk-host"))
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
         .arg(
@@ -17,7 +17,7 @@ fn main() {
                 .short("s")
                 .long("serial")
                 .value_name("DEVICE")
-                .help("Serial Device for ccTalk client (for example /dev/ttyUSB0 or COM3)")
+                .help("Serial Device for ccTalk host (for example /dev/ttyUSB0 or COM3)")
                 .takes_value(true)
                 .required(true),
         )
@@ -26,7 +26,7 @@ fn main() {
                 .short("t")
                 .long("target")
                 .value_name("TARGET_ADDRESS")
-                .help("Address of the target device")
+                .help("Address of the client device")
                 .default_value("2"),
         )
         .get_matches();
@@ -47,7 +47,7 @@ fn main() {
     let mut cctalk =
         CCTalkDevice::new(serial_dev, target_device_id, ChecksumType::SimpleChecksum).unwrap();
 
-    println!("Querying device={}", target_device_id);
+    println!("Querying client device: {}", target_device_id);
 
     let resp = cctalk.request_equipment_category().unwrap();
 

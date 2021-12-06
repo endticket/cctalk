@@ -14,6 +14,9 @@ log = "0.4"
 [[example]]
 name = "coinacceptor"
 
+[[example]]
+name = "cctalk-host"
+
 [dev-dependencies]
 env_logger = "0.7"
 clap = "2.33.3"
