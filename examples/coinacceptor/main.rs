@@ -48,6 +48,7 @@ fn main() {
     let mut cctalk = CoinAcceptor::init(
         serial_dev,
         ChecksumType::SimpleChecksum,
+        // TODO: Supply empty coin table for now..
         Box::new(CoinTable::default()),
         Box::new(device_info),
     )
