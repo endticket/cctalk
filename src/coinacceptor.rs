@@ -211,8 +211,8 @@ impl CoinAcceptor {
             HeaderType::RequestInhibitStatus => {
                 let mut bitmask: u16 = 0;
                 for i in 0..16 {
-                    if self.coin_table.get_inhibit(i) == false {
-                        bitmask = bitmask | (1 << i);
+                    if !self.coin_table.get_inhibit(i) {
+                        bitmask |= 1 << i;
                     }
                 }
                 let msg = self.create_message(Payload {
