@@ -340,6 +340,10 @@ impl CoinAcceptor {
         self.credit_buffer.insert(0, channel);
         self.credit_buffer.truncate(10);
     }
+
+    pub fn get_master_inhibit(&mut self) -> bool {
+        self.cc_master_inhibit
+    }
 }
 
 #[cfg(test)]
