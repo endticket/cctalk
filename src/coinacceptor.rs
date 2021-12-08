@@ -5,7 +5,7 @@ use crate::protocol::*;
 #[derive(Clone, Copy, Debug)]
 pub struct CoinInfo {
     inhibit: bool,
-    coin_id: &'static str,
+    coin_value: &'static str,
     sort_path: u8,
 }
 
@@ -13,8 +13,21 @@ impl Default for CoinInfo {
     fn default() -> Self {
         CoinInfo {
             inhibit: true,
-            coin_id: "......",
+            coin_value: "......",
             sort_path: 0,
+        }
+    }
+}
+
+impl CoinInfo {
+    /// Create active coin value
+    ///
+    /// NB! `coin_value` field is not validated.
+    pub fn new(coin_value: &'static str, sort_path: u8) -> Self {
+        CoinInfo {
+            inhibit: false,
+            coin_value,
+            sort_path,
         }
     }
 }
@@ -37,8 +50,8 @@ impl CoinTable {
         self.slots[channel as usize].sort_path
     }
 
-    pub fn get_coin_id(&self, channel: u8) -> &str {
-        self.slots[channel as usize].coin_id
+    pub fn get_coin_value(&self, channel: u8) -> &str {
+        self.slots[channel as usize].coin_value
     }
 
     pub fn get_inhibit(&self, channel: u8) -> bool {
@@ -66,6 +79,7 @@ pub struct CoreInfo {
 }
 
 /// Basic Coin Accepter implementation
+///
 /// By default, "Coin Acceptor" devices use address=2,
 /// extra addresses include 11-17.
 pub struct CoinAcceptor {
@@ -248,7 +262,7 @@ impl CoinAcceptor {
                     header: (HeaderType::Reply),
                     data: (self
                         .coin_table
-                        .get_coin_id(message.payload.data[0] - 1)
+                        .get_coin_value(message.payload.data[0] - 1)
                         .as_bytes()
                         .to_vec()),
                 });
@@ -392,78 +406,14 @@ mod tests {
     fn fullflow_cointable() -> CoinTable {
         let mut table = CoinTable::default();
 
-        table.set_coininfo(
-            0,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "EU020A",
-                sort_path: 3u8,
-            },
-        );
-
-        table.set_coininfo(
-            1,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "EU050A",
-                sort_path: 1u8,
-            },
-        );
-
-        table.set_coininfo(
-            2,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "EU100A",
-                sort_path: 2u8,
-            },
-        );
-
-        table.set_coininfo(
-            3,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "EU200A",
-                sort_path: 1u8,
-            },
-        );
-
-        table.set_coininfo(
-            4,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "SE100C",
-                sort_path: 1u8,
-            },
-        );
-
-        table.set_coininfo(
-            5,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "SE200B",
-                sort_path: 1u8,
-            },
-        );
-
-        table.set_coininfo(
-            6,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "SE500B",
-                sort_path: 1u8,
-            },
-        );
-
-        table.set_coininfo(
-            7,
-            CoinInfo {
-                inhibit: false,
-                coin_id: "SE1K0A",
-                sort_path: 1u8,
-            },
-        );
-
+        table.set_coininfo(0, CoinInfo::new("EU020A", 3u8));
+        table.set_coininfo(1, CoinInfo::new("EU050A", 1u8));
+        table.set_coininfo(2, CoinInfo::new("EU100A", 2u8));
+        table.set_coininfo(3, CoinInfo::new("EU200A", 1u8));
+        table.set_coininfo(4, CoinInfo::new("SE100C", 1u8));
+        table.set_coininfo(5, CoinInfo::new("SE200B", 1u8));
+        table.set_coininfo(6, CoinInfo::new("SE500B", 1u8));
+        table.set_coininfo(7, CoinInfo::new("SE1K0A", 1u8));
         table
     }
 

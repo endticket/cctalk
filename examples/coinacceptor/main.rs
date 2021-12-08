@@ -54,7 +54,10 @@ fn main() {
     )
     .unwrap();
 
-    println!("Example CoinAcceptor listening at address = {}", device_address);
+    println!(
+        "Example CoinAcceptor listening at address = {}",
+        device_address
+    );
 
     loop {
         let mut msg: Vec<Message> = cctalk.read_messages();
