@@ -460,7 +460,8 @@ mod tests {
             // ACK
             vec![1, 0, 2, 0, 253]
         );
-        assert_eq!(cctalk.cc_master_inhibit, true);
+        assert_eq!(cctalk.get_master_inhibit(), cctalk.cc_master_inhibit);
+        assert_eq!(cctalk.get_master_inhibit(), true);
 
         // Request polling priority
         let resp = send!(cctalk, channels, vec![2, 0, 1, 249, 4]);
@@ -516,9 +517,9 @@ mod tests {
             // Master inhibit active
             vec![1, 1, 2, 0, 0, 252]
         );
-        assert_eq!(cctalk.cc_master_inhibit, true);
+        assert_eq!(cctalk.get_master_inhibit(), true);
 
-        // Request inhibit status
+        // Request channel inhibit status
         let resp = send!(cctalk, channels, vec![2, 0, 1, 230, 23]);
         assert_eq!(
             resp.encode(),
