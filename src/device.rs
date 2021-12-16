@@ -1,5 +1,7 @@
 use crate::client::*;
 use crate::protocol::*;
+// Reimports
+pub use crate::coinacceptor::{CoinAcceptor, CoinInfo, CoinTable, CoreInfo};
 
 pub struct CCTalkDevice {
     pub client: Box<dyn CCTalkClient + 'static>,
@@ -10,21 +12,14 @@ pub struct CCTalkDevice {
 
 impl CCTalkDevice {
     pub fn new(
-        port_name: &String,
-        serial_settings: &serial::PortSettings,
+        client: Box<dyn CCTalkClient>,
         address: Address,
         checksum_type: ChecksumType,
-        mock: bool,
     ) -> Result<CCTalkDevice, ClientError> {
-        let temp_client: Box<dyn CCTalkClient + 'static> = match mock {
-            false => Box::new(SerialClient::new(port_name, serial_settings)?),
-            true => Box::new(DummyClient::new()),
-        };
-
         Ok(CCTalkDevice {
-            client: temp_client,
-            address: address,
-            checksum_type: checksum_type,
+            client,
+            address,
+            checksum_type,
             counter: 0,
         })
     }

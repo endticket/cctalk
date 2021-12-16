@@ -1,4 +1,4 @@
-use serial::prelude::*;
+use serialport;
 use std;
 use std::convert;
 use std::io::ErrorKind::TimedOut;
@@ -10,12 +10,12 @@ use crate::protocol::*;
 #[derive(Debug)]
 pub enum ClientError {
     CCTalkError(ErrorType),
-    SerialError(serial::Error),
+    SerialError(serialport::Error),
     IOError(std::io::Error),
 }
 
-impl convert::From<serial::Error> for ClientError {
-    fn from(e: serial::Error) -> ClientError {
+impl convert::From<serialport::Error> for ClientError {
+    fn from(e: serialport::Error) -> ClientError {
         ClientError::SerialError(e)
     }
 }
@@ -40,7 +40,7 @@ impl Clone for ClientError {
                 ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
             &ClientError::SerialError(ref e) => {
-                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
+                ClientError::SerialError(serialport::Error::new(e.kind(), e.to_string()))
             }
         }
     }
@@ -50,10 +50,12 @@ pub trait CCTalkClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError>;
     fn get_address(&self) -> Address;
     fn set_bill_event(&mut self, bill_event: BillEvent);
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError>;
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError>;
 }
 
 pub struct SerialClient {
-    port: serial::SystemPort,
+    port: Box<dyn serialport::SerialPort>,
     pub address: Address,
     buffer: Vec<u8>,
 }
@@ -61,16 +63,12 @@ pub struct SerialClient {
 #[allow(dead_code)]
 impl SerialClient {
     pub fn new(
-        port_name: &String,
-        serial_settings: &serial::PortSettings,
+        port: Box<dyn serialport::SerialPort>,
+        address: Address,
     ) -> Result<SerialClient, ClientError> {
-        let mut port_temp = serial::open(&port_name)?;
-
-        port_temp.configure(&serial_settings)?;
-
         Ok(SerialClient {
-            port: port_temp,
-            address: 1,
+            port,
+            address,
             buffer: Vec::<u8>::new(),
         })
     }
@@ -92,7 +90,10 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    // log::debug!("message to another recipient ignored");
+                    log::trace!(
+                        "message to another recipient {} ignored",
+                        message.destination
+                    );
                     Ok(())
                 }
             }
@@ -126,7 +127,7 @@ impl SerialClient {
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
         // log::debug!("Sending CCTalk message: {:?}", msg);
-        // log::debug!("Sending CCTalk message encoded: {:?}", buf);
+        log::trace!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
 
@@ -199,6 +200,19 @@ impl CCTalkClient for SerialClient {
     }
 
     fn set_bill_event(&mut self, _: BillEvent) {}
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        self.read_all(1)
+    }
+
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
+        let send_result = self.send(&msg);
+        self.buffer.clear();
+        match send_result {
+            Ok(r) => Ok(r),
+            Err(e) => Err(ClientError::IOError(e)),
+        }
+    }
 }
 
 pub struct DummyClient {
@@ -248,5 +262,13 @@ impl CCTalkClient for DummyClient {
     fn set_bill_event(&mut self, bill_event: BillEvent) {
         self.bill_event = bill_event;
         self.changed = true;
+    }
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        Ok(Vec::<Message>::new())
+    }
+
+    fn send_message(&mut self, _msg: &Message) -> Result<(), ClientError> {
+        Ok(())
     }
 }
