@@ -853,9 +853,7 @@ impl Message {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        let mut temp = Vec::<u8>::new();
-        temp.push(self.destination);
-        temp.push(self.length);
+        let mut temp = vec![self.destination, self.length];
 
         match self.checksum_type {
             ChecksumType::SimpleChecksum => {
@@ -946,16 +944,13 @@ impl Message {
     }
 
     pub fn calc_own_crc(&self) -> CRC {
-        let mut data = Vec::<u8>::new();
-
-        data.push(self.destination);
-        data.push(self.length);
+        let mut data = vec![self.destination, self.length];
         data.append(&mut self.payload.encode());
 
-        Message::calc_crc(&data)
+        Self::calc_crc(&data)
     }
 
-    pub fn calc_crc(data: &Vec<u8>) -> CRC {
+    pub fn calc_crc(data: &[u8]) -> CRC {
         let poly = 0x1021;
         let mut crc = 0u16;
 
@@ -973,7 +968,7 @@ impl Message {
         [(crc & 0xff) as u8, (crc >> 8 & 0xff) as u8]
     }
 
-    pub fn validate_checksum(raw: &Vec<u8>) -> bool {
+    pub fn validate_checksum(raw: &[u8]) -> bool {
         if raw.is_empty() {
             log::error!("Validate checksum called on empty message!");
             return false;
@@ -987,15 +982,15 @@ impl Message {
         rem == 0
     }
 
-    pub fn validate_crc(raw: &Vec<u8>) -> bool {
+    pub fn validate_crc(raw: &[u8]) -> bool {
         if raw.is_empty() {
             log::error!("Validate CRC called on empty message!");
             return false;
         }
 
-        let mut data = raw.clone();
+        let mut data = raw.to_owned();
         let crc: [u8; 2] = [data.remove(2), data.pop().unwrap()];
 
-        crc == Message::calc_crc(&data)
+        crc == Self::calc_crc(&data)
     }
 }
