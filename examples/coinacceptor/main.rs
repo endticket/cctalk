@@ -30,7 +30,7 @@ fn main() {
     let dev = matches.value_of("serial").unwrap();
 
     let serial = serialport::new(dev, 9600)
-        .timeout(Duration::from_millis(500))
+        .timeout(Duration::from_millis(100))
         .open()
         .expect("Failed to open port");
 

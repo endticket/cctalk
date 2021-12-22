@@ -52,6 +52,7 @@ pub trait CCTalkClient {
     fn set_bill_event(&mut self, bill_event: BillEvent);
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError>;
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError>;
+    fn clear(&mut self);
 }
 
 pub struct SerialClient {
@@ -169,6 +170,15 @@ impl SerialClient {
 
         Ok(messages)
     }
+
+    /// Clear incoming message buffer together with serial port's
+    /// input and output buffers.
+    fn clear(&mut self) {
+        self.buffer.clear();
+        self.port
+            .clear(serialport::ClearBuffer::All)
+            .unwrap_or_else(|e| log::error!("Unable to flush serial: {:?}", e));
+    }
 }
 
 impl CCTalkClient for SerialClient {
@@ -213,6 +223,8 @@ impl CCTalkClient for SerialClient {
             Err(e) => Err(ClientError::IOError(e)),
         }
     }
+
+    fn clear(&mut self) {}
 }
 
 pub struct DummyClient {
@@ -233,6 +245,8 @@ impl DummyClient {
 }
 
 impl CCTalkClient for DummyClient {
+    fn clear(&mut self) {}
+
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError> {
         match msg.payload.header {
             HeaderType::ReadBufferedBillEvents => {
