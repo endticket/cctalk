@@ -8,7 +8,7 @@ description = "CCTalk protocol implementation for handling payment devices"
 edition = "2018"
 
 [dependencies]
-serialport = "4"
+serialport = {version = "4.0.1", default-features = false}
 log = "0.4"
 
 [[example]]
