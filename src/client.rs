@@ -79,12 +79,9 @@ impl SerialClient {
         received: &mut Vec<u8>,
         messages: &mut Vec<Message>,
     ) -> Result<(), ClientError> {
-        // log::debug!("Received: {:?}", received);
-        self.buffer.append(received);
-        // log::debug!("Buffer: {:?}", self.buffer);
-
-        // decode will leave the remaining stuff in the buffer
-        let decode_res = Message::decode(&mut self.buffer);
+        
+        // decode will process latest message
+        let decode_res = Message::decode(received);
         match decode_res {
             Ok(message) => {
                 if message.destination == self.address {
@@ -212,7 +209,7 @@ impl CCTalkClient for SerialClient {
     fn set_bill_event(&mut self, _: BillEvent) {}
 
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
-        self.read_all(1)
+        self.read()
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {

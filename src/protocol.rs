@@ -877,7 +877,7 @@ impl Message {
 
         let msg_length = raw.len() as u16;
 
-        if msg_length < 2 {
+        if msg_length < 5 {
             return Err(ErrorType::PartialMessage);
         }
 

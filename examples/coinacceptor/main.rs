@@ -11,8 +11,9 @@ const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 const DESCRIPTION: Option<&'static str> = option_env!("CARGO_PKG_DESCRIPTION");
 
 fn main() {
-    env_logger::init();
 
+    env_logger::init();
+    
     let matches = App::new(PROGRAM.unwrap_or("cctalk-emulator"))
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
@@ -30,7 +31,7 @@ fn main() {
     let dev = matches.value_of("serial").unwrap();
 
     let serial = serialport::new(dev, 9600)
-        .timeout(Duration::from_millis(100))
+        .timeout(Duration::from_millis(20))
         .open()
         .expect("Failed to open port");
 
@@ -69,6 +70,6 @@ fn main() {
             thread::sleep(Duration::from_millis(20));
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(50));
     }
 }
