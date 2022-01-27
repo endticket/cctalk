@@ -85,6 +85,10 @@ impl SerialClient {
         match decode_res {
             Ok(message) => {
                 if message.destination == self.address {
+                    log::trace!(
+                        "Received: {:?}",
+                        message,
+                    );
                     messages.push(message);
                     Ok(())
                 } else {
@@ -124,7 +128,6 @@ impl SerialClient {
 
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
-        // log::debug!("Sending CCTalk message: {:?}", msg);
         log::trace!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
@@ -136,8 +139,10 @@ impl SerialClient {
 
         while (messages.len() < 1) && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            // log::debug!("Received on serial: {:?} Counter: {}", received, counter);
-            self.read_and_decode(&mut received, &mut messages)?;
+            if received != []{
+                log::trace!("Received on serial: {:?} Counter: {}", received, counter);
+                self.read_and_decode(&mut received, &mut messages)?;
+            }
             counter += 1;
         }
 
