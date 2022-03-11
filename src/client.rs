@@ -34,12 +34,12 @@ impl convert::From<std::io::Error> for ClientError {
 
 impl Clone for ClientError {
     fn clone(&self) -> Self {
-        match self {
-            &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
-            &ClientError::IOError(ref e) => {
+        match *self {
+            ClientError::CCTalkError(ref e) => ClientError::CCTalkError(*e),
+            ClientError::IOError(ref e) => {
                 ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
-            &ClientError::SerialError(ref e) => {
+            ClientError::SerialError(ref e) => {
                 ClientError::SerialError(serialport::Error::new(e.kind(), e.to_string()))
             }
         }
@@ -190,7 +190,7 @@ impl CCTalkClient for SerialClient {
         // log::debug!("Waiting for Reply");
         let received = self.read()?;
         if received.len() > 0 {
-            let ref reply = received[0];
+            let reply = &received[0];
             match reply.payload.header {
                 HeaderType::Reply => Ok(reply.payload.clone()),
                 _ => Err(ClientError::CCTalkError(ErrorType::NotAReply)),
@@ -218,7 +218,7 @@ impl CCTalkClient for SerialClient {
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
-        let send_result = self.send(&msg);
+        let send_result = self.send(msg);
         self.buffer.clear();
         match send_result {
             Ok(r) => Ok(r),
