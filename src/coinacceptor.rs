@@ -238,12 +238,11 @@ impl CoinAcceptor {
                 self.client.send_message(&msg)
             }
             HeaderType::RequestMasterInhibitStatus => {
-                let status: u8;
-                if self.cc_master_inhibit {
-                    status = 0u8;
+                let status: u8 = if self.cc_master_inhibit {
+                    0u8
                 } else {
-                    status = 1u8;
-                }
+                    1u8
+                };
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (vec![status]),
