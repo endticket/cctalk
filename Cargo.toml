@@ -19,4 +19,4 @@ name = "cctalk-host"
 
 [dev-dependencies]
 env_logger = "0.7"
-clap = "2.33.3"
+clap = "3.0"
