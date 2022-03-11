@@ -1,5 +1,5 @@
 use cctalk::{device::CCTalkDevice, protocol::ChecksumType};
-use clap::{App, Arg};
+use clap::{Command, Arg};
 use std::time::Duration;
 
 const PROGRAM: Option<&'static str> = option_env!("CARGO_PKG_NAME");
@@ -9,7 +9,7 @@ const DESCRIPTION: Option<&'static str> = option_env!("CARGO_PKG_DESCRIPTION");
 fn main() {
     env_logger::init();
 
-    let matches = App::new(PROGRAM.unwrap_or("cctalk-host"))
+    let matches = Command::new(PROGRAM.unwrap_or("cctalk-host"))
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
         .arg(

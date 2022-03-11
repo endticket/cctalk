@@ -2,7 +2,7 @@ use cctalk::{
     device::{CoinAcceptor, CoinTable, CoreInfo},
     protocol::{ChecksumType, Message},
 };
-use clap::{App, Arg};
+use clap::{Command, Arg};
 use std::thread;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ fn main() {
 
     env_logger::init();
     
-    let matches = App::new(PROGRAM.unwrap_or("cctalk-emulator"))
+    let matches = Command::new(PROGRAM.unwrap_or("cctalk-emulator"))
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
         .arg(
