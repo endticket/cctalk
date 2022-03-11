@@ -18,8 +18,8 @@ fn main() {
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
         .arg(
-            Arg::with_name("serial")
-                .short("s")
+            Arg::new("serial")
+                .short('s')
                 .long("serial")
                 .value_name("DEVICE")
                 .help("Serial Device for ccTalk")

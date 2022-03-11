@@ -1,5 +1,5 @@
 use cctalk::{device::CCTalkDevice, protocol::ChecksumType};
-use clap::{value_t, App, Arg};
+use clap::{App, Arg};
 use std::time::Duration;
 
 const PROGRAM: Option<&'static str> = option_env!("CARGO_PKG_NAME");
@@ -13,8 +13,8 @@ fn main() {
         .version(VERSION.unwrap_or("unknown"))
         .about(DESCRIPTION.unwrap_or(""))
         .arg(
-            Arg::with_name("serial")
-                .short("s")
+            Arg::new("serial")
+                .short('s')
                 .long("serial")
                 .value_name("DEVICE")
                 .help("Serial Device for ccTalk host (for example /dev/ttyUSB0 or COM3)")
@@ -22,8 +22,8 @@ fn main() {
                 .required(true),
         )
         .arg(
-            Arg::with_name("target")
-                .short("t")
+            Arg::new("target")
+                .short('t')
                 .long("target")
                 .value_name("TARGET_ADDRESS")
                 .help("Address of the client device")
@@ -33,7 +33,7 @@ fn main() {
 
     let dev = matches.value_of("serial").unwrap();
 
-    let target_device_id = value_t!(matches.value_of("target"), u8).unwrap_or_else(|e| e.exit());
+    let target_device_id: u8 = matches.value_of_t("target").unwrap_or_else(|e| e.exit());
 
     let serial = serialport::new(dev, 9600)
         .timeout(Duration::from_millis(500))
