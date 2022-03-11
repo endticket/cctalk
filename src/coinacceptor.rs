@@ -128,13 +128,14 @@ impl CoinAcceptor {
         let _received = self.client.read_messages();
         let received = match _received {
             Ok(data) => {
-                log::trace!("Read: {:?}", data);
+                // log::trace!("Read: {:?}", data);
                 data
             }
             Err(error) => {
                 match error {
                     ClientError::CCTalkError(ErrorType::ChecksumError) => {
-                        println!("Checksum error");
+                        self.client.clear();
+                        log::error!("Checksum error");
                     }
                     _ => panic!("Client error: {:?}", error),
                 }
@@ -237,12 +238,11 @@ impl CoinAcceptor {
                 self.client.send_message(&msg)
             }
             HeaderType::RequestMasterInhibitStatus => {
-                let status: u8;
-                if self.cc_master_inhibit {
-                    status = 0u8;
+                let status: u8 = if self.cc_master_inhibit {
+                    0u8
                 } else {
-                    status = 1u8;
-                }
+                    1u8
+                };
                 let msg = self.create_message(Payload {
                     header: (HeaderType::Reply),
                     data: (vec![status]),
@@ -366,6 +366,8 @@ mod tests {
     }
 
     impl CCTalkClient for MPSCTestClient {
+        fn clear(&mut self) {}
+
         fn send_and_check_reply(&mut self, _msg: &Message) -> Result<Payload, ClientError> {
             Ok(Payload {
                 header: HeaderType::Unknown(0),

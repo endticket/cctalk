@@ -34,12 +34,12 @@ impl convert::From<std::io::Error> for ClientError {
 
 impl Clone for ClientError {
     fn clone(&self) -> Self {
-        match self {
-            &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
-            &ClientError::IOError(ref e) => {
+        match *self {
+            ClientError::CCTalkError(ref e) => ClientError::CCTalkError(*e),
+            ClientError::IOError(ref e) => {
                 ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
-            &ClientError::SerialError(ref e) => {
+            ClientError::SerialError(ref e) => {
                 ClientError::SerialError(serialport::Error::new(e.kind(), e.to_string()))
             }
         }
@@ -52,6 +52,7 @@ pub trait CCTalkClient {
     fn set_bill_event(&mut self, bill_event: BillEvent);
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError>;
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError>;
+    fn clear(&mut self);
 }
 
 pub struct SerialClient {
@@ -78,15 +79,16 @@ impl SerialClient {
         received: &mut Vec<u8>,
         messages: &mut Vec<Message>,
     ) -> Result<(), ClientError> {
-        // log::debug!("Received: {:?}", received);
-        self.buffer.append(received);
-        // log::debug!("Buffer: {:?}", self.buffer);
-
-        // decode will leave the remaining stuff in the buffer
-        let decode_res = Message::decode(&mut self.buffer);
+        
+        // decode will process latest message
+        let decode_res = Message::decode(received);
         match decode_res {
             Ok(message) => {
                 if message.destination == self.address {
+                    log::trace!(
+                        "Received: {:?}",
+                        message,
+                    );
                     messages.push(message);
                     Ok(())
                 } else {
@@ -126,7 +128,6 @@ impl SerialClient {
 
     fn send(&mut self, msg: &Message) -> Result<(), std::io::Error> {
         let buf: Vec<u8> = msg.encode();
-        // log::debug!("Sending CCTalk message: {:?}", msg);
         log::trace!("Sending CCTalk message encoded: {:?}", buf);
         self.port.write_all(&buf[..])
     }
@@ -136,10 +137,12 @@ impl SerialClient {
 
         let mut counter = 0;
 
-        while (messages.len() < 1) && (counter < 80) {
+        while messages.is_empty() && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            // log::debug!("Received on serial: {:?} Counter: {}", received, counter);
-            self.read_and_decode(&mut received, &mut messages)?;
+            if !received.is_empty() {
+                log::trace!("Received on serial: {:?} Counter: {}", received, counter);
+                self.read_and_decode(&mut received, &mut messages)?;
+            }
             counter += 1;
         }
 
@@ -160,7 +163,7 @@ impl SerialClient {
         while !timeout {
             let mut received = self.read_from_serial()?;
             self.read_and_decode(&mut received, &mut messages)?;
-            if (received.len() == 0) && (self.buffer.len() == 0) {
+            if received.is_empty() && self.buffer.is_empty() {
                 timeout = true;
             }
         }
@@ -168,6 +171,15 @@ impl SerialClient {
         self.port.set_timeout(old_timeout).unwrap();
 
         Ok(messages)
+    }
+
+    /// Clear incoming message buffer together with serial port's
+    /// input and output buffers.
+    fn clear(&mut self) {
+        self.buffer.clear();
+        self.port
+            .clear(serialport::ClearBuffer::All)
+            .unwrap_or_else(|e| log::error!("Unable to flush serial: {:?}", e));
     }
 }
 
@@ -177,14 +189,14 @@ impl CCTalkClient for SerialClient {
 
         // log::debug!("Waiting for Reply");
         let received = self.read()?;
-        if received.len() > 0 {
-            let ref reply = received[0];
+        if !received.is_empty() {
+            let reply = &received[0];
             match reply.payload.header {
                 HeaderType::Reply => Ok(reply.payload.clone()),
                 _ => Err(ClientError::CCTalkError(ErrorType::NotAReply)),
             }
         } else {
-            if self.buffer.len() != 0 {
+            if !self.buffer.is_empty() {
                 log::debug!(
                     "Message not received in time, clearing partial message from buffer: {:?}",
                     self.buffer
@@ -202,17 +214,19 @@ impl CCTalkClient for SerialClient {
     fn set_bill_event(&mut self, _: BillEvent) {}
 
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
-        self.read_all(1)
+        self.read()
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
-        let send_result = self.send(&msg);
+        let send_result = self.send(msg);
         self.buffer.clear();
         match send_result {
             Ok(r) => Ok(r),
             Err(e) => Err(ClientError::IOError(e)),
         }
     }
+
+    fn clear(&mut self) {}
 }
 
 pub struct DummyClient {
@@ -233,12 +247,14 @@ impl DummyClient {
 }
 
 impl CCTalkClient for DummyClient {
+    fn clear(&mut self) {}
+
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError> {
         match msg.payload.header {
             HeaderType::ReadBufferedBillEvents => {
                 let (byte1, byte2) = self.bill_event.to_u8();
 
-                if self.changed == true {
+                if self.changed {
                     self.counter += 1;
                     self.changed = false;
                 }
