@@ -137,9 +137,9 @@ impl SerialClient {
 
         let mut counter = 0;
 
-        while (messages.len() < 1) && (counter < 80) {
+        while messages.is_empty() && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            if received != []{
+            if !received.is_empty() {
                 log::trace!("Received on serial: {:?} Counter: {}", received, counter);
                 self.read_and_decode(&mut received, &mut messages)?;
             }
@@ -163,7 +163,7 @@ impl SerialClient {
         while !timeout {
             let mut received = self.read_from_serial()?;
             self.read_and_decode(&mut received, &mut messages)?;
-            if (received.len() == 0) && (self.buffer.len() == 0) {
+            if received.is_empty() && self.buffer.is_empty() {
                 timeout = true;
             }
         }
@@ -189,14 +189,14 @@ impl CCTalkClient for SerialClient {
 
         // log::debug!("Waiting for Reply");
         let received = self.read()?;
-        if received.len() > 0 {
+        if !received.is_empty() {
             let reply = &received[0];
             match reply.payload.header {
                 HeaderType::Reply => Ok(reply.payload.clone()),
                 _ => Err(ClientError::CCTalkError(ErrorType::NotAReply)),
             }
         } else {
-            if self.buffer.len() != 0 {
+            if !self.buffer.is_empty() {
                 log::debug!(
                     "Message not received in time, clearing partial message from buffer: {:?}",
                     self.buffer
@@ -254,7 +254,7 @@ impl CCTalkClient for DummyClient {
             HeaderType::ReadBufferedBillEvents => {
                 let (byte1, byte2) = self.bill_event.to_u8();
 
-                if self.changed == true {
+                if self.changed {
                     self.counter += 1;
                     self.changed = false;
                 }
