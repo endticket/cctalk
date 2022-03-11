@@ -897,14 +897,12 @@ impl Message {
         if Message::validate_checksum(&raw_msg) {
             checksum_type = ChecksumType::SimpleChecksum;
             source = raw_msg[2];
+        } else if Message::validate_crc(&raw_msg) {
+            checksum_type = ChecksumType::CRCChecksum;
+            source = 1; // Source address is always 1 in CRC mode
         } else {
-            if Message::validate_crc(&raw_msg) {
-                checksum_type = ChecksumType::CRCChecksum;
-                source = 1; // Source address is always 1 in CRC mode
-            } else {
-                log::error!("Failed raw: {:?}", raw_msg);
-                return Err(ErrorType::ChecksumError);
-            }
+            log::error!("Failed raw: {:?}", raw_msg);
+            return Err(ErrorType::ChecksumError);
         }
 
         let mut raw_data = raw_msg.split_off(4);
