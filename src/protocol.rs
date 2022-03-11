@@ -842,13 +842,13 @@ impl Message {
         payload: Payload,
         checksum_type: ChecksumType,
     ) -> Message {
-        let length = payload.data.len();
+        let length: u8 = payload.data.len() as u8;
         Message {
-            destination: destination,
-            length: length as u8,
-            source: source,
-            payload: payload,
-            checksum_type: checksum_type,
+            destination,
+            length,
+            source,
+            payload,
+            checksum_type,
         }
     }
 
@@ -920,11 +920,11 @@ impl Message {
         };
 
         Ok(Message {
-            destination: destination,
+            destination,
             length: data_length,
-            source: source,
-            payload: payload,
-            checksum_type: checksum_type,
+            source,
+            payload,
+            checksum_type,
         })
     }
 
